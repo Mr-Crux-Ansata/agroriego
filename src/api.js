@@ -1,4 +1,4 @@
-const BASE = 'https://agroriego.onrender.com';
+const BASE = 'https://agroriego.onrender.com/api';
 
 function getToken() {
     return localStorage.getItem('token');
