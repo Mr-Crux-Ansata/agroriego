@@ -15,13 +15,16 @@ router.post('/login', async (req, res) => {
         if (!user) {
             return res.status(401).json({ error: 'Correo no registrado' });
         }
+        
+        // Comparamos texto plano (admin123 === admin123)
         if (password !== user.password_hash) {
             return res.status(401).json({ error: 'Contraseña incorrecta' });
         }
 
+        // Si JWT_SECRET no existe en Render, esto dará error 500
         const token = jwt.sign(
             { id_usuario: user.id_usuario, rol: user.rol },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'secretatemporal123', 
             { expiresIn: '8h' }
         );
 
@@ -35,8 +38,13 @@ router.post('/login', async (req, res) => {
             },
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        console.error("DETALLE DEL ERROR EN RENDER:", err);
+        res.status(500).json({ 
+            error: 'Error interno del servidor', 
+            mensaje: err.message, 
+            codigo: err.code 
+        });
+    } // <--- ESTA LLAVE FALTABA
 });
 
 module.exports = router;
