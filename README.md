@@ -11,7 +11,7 @@ Sistema web para monitoreo y gestión de riego agrícola con sensores IoT.
 
 Antes de empezar, asegúrate de tener instalado:
 
-- [Node.js](https://nodejs.org/) v18 o superior
+- [Node.js](https://nodejs.org/) v18 o superior.
 - [Git](https://git-scm.com/)
 - SQL Server (ver opciones según tu sistema operativo abajo)
 
