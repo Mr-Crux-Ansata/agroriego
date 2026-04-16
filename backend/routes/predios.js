@@ -2,6 +2,9 @@ const router = require('express').Router();
 const { getPool, sql } = require('../db');
 const { verificarToken } = require('../middleware/auth');
 
+console.log('verificarToken:', verificarToken);
+console.log('tipo:', typeof verificarToken); 
+
 router.get('/', verificarToken, async (req, res) => {
     try {
         const pool = await getPool();
