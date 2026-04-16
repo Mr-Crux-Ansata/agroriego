@@ -17,24 +17,26 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErr('');
-    try {
-      const result = await api.login(email, password);
-      if (result.token) {
-        localStorage.setItem('token', result.token);
-        onLogin(result.user);
-      } else {
-        setErr(result.error || 'Credenciales incorrectas');
-        setLoading(false);
-      }
-    } catch {
-      setErr('No se pudo conectar con el servidor');
+  e.preventDefault();
+  setLoading(true);
+  setErr('');
+
+  try {
+    const result = await api.login(email, password);
+
+    if (result.ok) {
+      // 🔥 ya está guardado el token en api.js
+      onLogin(result.user); // si backend lo manda
+    } else {
+      setErr(result.error || 'Credenciales incorrectas');
       setLoading(false);
     }
-  };
 
+  } catch {
+    setErr('No se pudo conectar con el servidor');
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100 flex items-center justify-center p-4 sm:p-8">
       {/* Contenedor con max-w-2xl */}

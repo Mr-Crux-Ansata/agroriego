@@ -1,73 +1,107 @@
-const BASE = 'https://agroriego.onrender.com/api';
+const BASE = 'http://localhost:3000/api';
 
 function getToken() {
     return localStorage.getItem('token');
 }
 
-function headers() {
-    return {
+function getHeaders(auth = true) {
+    const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getToken()}`,
     };
+
+    if (auth) {
+        const token = getToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    }
+
+    return headers;
+}
+
+// 🔥 función base para todas las requests
+async function request(url, options = {}, auth = true) {
+    try {
+        const res = await fetch(`${BASE}${url}`, {
+            ...options,
+            headers: getHeaders(auth),
+        });
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            return { ok: false, error: error.error || 'Error en servidor' };
+        }
+
+        const data = await res.json();
+        return { ok: true, ...data };
+
+    } catch (err) {
+        return { ok: false, error: 'Error de conexión' };
+    }
 }
 
 export const api = {
-    login: (email, password) =>
-        fetch(`${BASE}/auth/login`, {
+
+    // 🔑 LOGIN
+    login: async (email, password) => {
+        const res = await request('/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
-        }).then(r => r.json()),
+        }, false);
 
-    getPredios: () =>
-        fetch(`${BASE}/predios`, { headers: headers() }).then(r => r.json()),
+        if (res.ok && res.token) {
+            localStorage.setItem('token', res.token);
+        }
 
-    getAreas: () =>
-        fetch(`${BASE}/areas`, { headers: headers() }).then(r => r.json()),
+        return res;
+    },
+
+    // 🔓 LOGOUT (extra útil)
+    logout: () => {
+        localStorage.removeItem('token');
+    },
+
+    getPredios: () => request('/predios'),
+
+    getAreas: () => request('/areas'),
 
     getTelemetria: (areaId, desde, hasta) => {
         const params = desde && hasta
-            ? `?desde=${desde}&hasta=${hasta}` : '';
-        return fetch(`${BASE}/areas/${areaId}/telemetria${params}`,
-            { headers: headers() }).then(r => r.json());
+            ? `?desde=${desde}&hasta=${hasta}`
+            : '';
+        return request(`/areas/${areaId}/telemetria${params}`);
     },
 
     updateAreaConfig: (areaId, config) =>
-        fetch(`${BASE}/areas/${areaId}/config`, {
+        request(`/areas/${areaId}/config`, {
             method: 'PUT',
-            headers: headers(),
             body: JSON.stringify(config),
-        }).then(r => r.json()),
+        }),
 
-    getAlertas: () =>
-        fetch(`${BASE}/alertas`, { headers: headers() }).then(r => r.json()),
+    getAlertas: () => request('/alertas'),
 
     marcarAlertaLeida: (id) =>
-        fetch(`${BASE}/alertas/${id}/leer`, {
+        request(`/alertas/${id}/leer`, {
             method: 'PATCH',
-            headers: headers(),
-        }).then(r => r.json()),
+        }),
 
-    getUsuarios: () =>
-        fetch(`${BASE}/usuarios`, { headers: headers() }).then(r => r.json()),
+    getUsuarios: () => request('/usuarios'),
 
     crearUsuario: (data) =>
-        fetch(`${BASE}/usuarios`, {
+        request('/usuarios', {
             method: 'POST',
-            headers: headers(),
             body: JSON.stringify(data),
-        }).then(r => r.json()),
+        }),
 
     eliminarUsuario: (id) =>
-        fetch(`${BASE}/usuarios/${id}`, {
+        request(`/usuarios/${id}`, {
             method: 'DELETE',
-            headers: headers(),
-        }).then(r => r.json()),
+        }),
 
     crearPredio: (data) =>
-        fetch(`${BASE}/predios`, {
+        request('/predios', {
             method: 'POST',
-            headers: headers(),
             body: JSON.stringify(data),
-        }).then(r => r.json()),
+        }),
 };
+

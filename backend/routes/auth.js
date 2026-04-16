@@ -12,10 +12,13 @@ router.post('/login', async (req, res) => {
             .query('SELECT * FROM Usuario WHERE email = @email');
 
         const user = result.recordset[0];
+        const bcrypt = require('bcrypt');
         if (!user) {
             return res.status(401).json({ error: 'Correo no registrado' });
         }
-        if (password !== user.password_hash) {
+        const valido = await bcrypt.compare(password, user.password_hash);
+
+        if (!valido) {
             return res.status(401).json({ error: 'Contraseña incorrecta' });
         }
 
