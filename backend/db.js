@@ -8,8 +8,8 @@ const config = {
     database: process.env.DB_DATABASE,
     port: 1433,
     options: {
-        encrypt: true, // ¡ESTO ES OBLIGATORIO PARA AZURE!
-        trustServerCertificate: false // Para producción en Azure debe ser false
+        encrypt: false, 
+        trustServerCertificate: true 
     }
 };
 

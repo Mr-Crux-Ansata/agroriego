@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:3001';
+const BASE = 'http://127.0.0.1:3001/api';
 
 function getToken() {
     return localStorage.getItem('token');
@@ -18,8 +18,6 @@ function getHeaders(auth = true) {
 
     return headers;
 }
-
-// 🔥 función base para todas las requests
 async function request(url, options = {}, auth = true) {
     try {
         const res = await fetch(`${BASE}${url}`, {
@@ -27,16 +25,25 @@ async function request(url, options = {}, auth = true) {
             headers: getHeaders(auth),
         });
 
+        const data = await res.json().catch(() => ({}));
+
         if (!res.ok) {
-            const error = await res.json().catch(() => ({}));
-            return { ok: false, error: error.error || 'Error en servidor' };
+            return {
+                ok: false,
+                error: data.error || 'Error en servidor',
+            };
         }
 
-        const data = await res.json();
-        return { ok: true, ...data };
+        return {
+            ok: true,
+            ...data,
+        };
 
     } catch (err) {
-        return { ok: false, error: 'Error de conexión' };
+        return {
+            ok: false,
+            error: 'Error de conexión',
+        };
     }
 }
 
@@ -49,28 +56,30 @@ export const api = {
             body: JSON.stringify({ email, password }),
         }, false);
 
-        if (res.ok && res.token) {
-            localStorage.setItem('token', res.token);
+        // guardar token correctamente
+        if (res.ok && res.data?.token) {
+            localStorage.setItem('token', res.data.token);
         }
 
         return res;
     },
 
-    // 🔓 LOGOUT (extra útil)
+    // 🔓 LOGOUT
     logout: () => {
         localStorage.removeItem('token');
     },
 
+    // 📍 PREDIOS
     getPredios: () => request('/predios'),
 
-    getAreas: () => request('/areas'),
+    crearPredio: (data) =>
+        request('/predios', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
 
-    getTelemetria: (areaId, desde, hasta) => {
-        const params = desde && hasta
-            ? `?desde=${desde}&hasta=${hasta}`
-            : '';
-        return request(`/areas/${areaId}/telemetria${params}`);
-    },
+    // 🌱 AREAS
+    getAreas: () => request('/areas'),
 
     updateAreaConfig: (areaId, config) =>
         request(`/areas/${areaId}/config`, {
@@ -78,6 +87,16 @@ export const api = {
             body: JSON.stringify(config),
         }),
 
+    // 📡 TELEMETRIA
+    getTelemetria: (areaId, desde, hasta) => {
+        const params = desde && hasta
+            ? `?desde=${desde}&hasta=${hasta}`
+            : '';
+
+        return request(`/areas/${areaId}/telemetria${params}`);
+    },
+
+    // 🚨 ALERTAS
     getAlertas: () => request('/alertas'),
 
     marcarAlertaLeida: (id) =>
@@ -85,6 +104,7 @@ export const api = {
             method: 'PATCH',
         }),
 
+    // 👤 USUARIOS
     getUsuarios: () => request('/usuarios'),
 
     crearUsuario: (data) =>
@@ -97,11 +117,4 @@ export const api = {
         request(`/usuarios/${id}`, {
             method: 'DELETE',
         }),
-
-    crearPredio: (data) =>
-        request('/predios', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
 };
-

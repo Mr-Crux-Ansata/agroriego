@@ -6,6 +6,10 @@ require('dotenv').config();
 
 const router = express.Router();
 
+// 🔥 TEST
+router.get('/test', (req, res) => {
+    res.send('AUTH TEST OK');
+});
 
 // 🔹 REGISTRO
 router.post('/registro', async (req, res) => {
@@ -14,7 +18,6 @@ router.post('/registro', async (req, res) => {
     try {
         const pool = await getPool();
 
-        // Verificar si ya existe
         const existe = await pool.request()
             .input('email', sql.VarChar, email)
             .query('SELECT * FROM Usuario WHERE email = @email');
@@ -23,10 +26,8 @@ router.post('/registro', async (req, res) => {
             return res.status(400).json({ error: 'Correo ya registrado' });
         }
 
-        // Hash de contraseña
         const hash = await bcrypt.hash(password, 10);
 
-        // Insertar usuario
         await pool.request()
             .input('email', sql.VarChar, email)
             .input('pass', sql.VarChar, hash)
@@ -37,17 +38,18 @@ router.post('/registro', async (req, res) => {
                 VALUES (@email, @pass, @nombre, @rol)
             `);
 
-        res.json({ ok: true, mensaje: 'Usuario registrado' });
+        res.json({ ok: true });
 
     } catch (err) {
-        console.error('🔥 ERROR REGISTRO:', err);
+        console.error(err);
         res.status(500).json({ error: err.message });
     }
 });
 
-
 // 🔹 LOGIN
 router.post('/login', async (req, res) => {
+    console.log('LOGIN HIT', req.body);
+
     const { email, password } = req.body;
 
     try {
@@ -57,11 +59,11 @@ router.post('/login', async (req, res) => {
             .input('email', sql.VarChar, email)
             .query('SELECT * FROM Usuario WHERE email = @email');
 
-        if (result.recordset.length === 0) {
-            return res.status(401).json({ error: 'Usuario no existe' });
-        }
-
         const user = result.recordset[0];
+
+        if (!user) {
+            return res.status(401).json({ error: 'Correo no registrado' });
+        }
 
         const valido = await bcrypt.compare(password, user.password_hash);
 
@@ -69,7 +71,6 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Contraseña incorrecta' });
         }
 
-        // 🔥 Token
         const token = jwt.sign(
             { id_usuario: user.id_usuario, rol: user.rol },
             process.env.JWT_SECRET,
@@ -87,7 +88,7 @@ router.post('/login', async (req, res) => {
         });
 
     } catch (err) {
-        console.error('🔥 ERROR LOGIN:', err);
+        console.error(err);
         res.status(500).json({ error: err.message });
     }
 });
