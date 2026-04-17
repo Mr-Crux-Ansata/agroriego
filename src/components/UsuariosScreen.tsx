@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -27,27 +26,25 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
     rol: 'Operador Campo',
   });
 
+  useEffect(() => {
+    cargarUsuarios();
+  }, []);
+
   const cargarUsuarios = () => {
-  setLoading(true);
+    setLoading(true);
 
-  api.getUsuarios()
-    .then(res => {
-      console.log("USUARIOS:", res);
-
-      if (!res.ok) {
+    api.getUsuarios()
+      .then(data => {
+        console.log("USUARIOS:", data);
+        setUsuarios(data || []);
+      })
+      .catch(() => {
         setUsuarios([]);
-        return;
-      }
-
-      setUsuarios(res.data || []);
-    })
-    .catch(() => {
-      setUsuarios([]);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-};
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -230,7 +227,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
 
               <Select
                 value={formData.rol}
-                onValueChange={value => setFormData({ ...formData, rol: value })}
+                onValueChange={(value: string) => setFormData({ ...formData, rol: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
