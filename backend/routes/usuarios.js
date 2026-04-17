@@ -83,6 +83,10 @@ router.delete('/:id', verificarToken, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+router.get('/', async (req, res) => {
+    console.log('PREDIOS HIT');
+    res.json({ ok: true });
+});
 
 module.exports = router;
 

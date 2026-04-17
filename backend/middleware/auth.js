@@ -1,19 +1,20 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
 
 function verificarToken(req, res, next) {
-    const auth = req.headers.authorization;
+    const header = req.headers.authorization;
 
-    if (!auth) {
-        return res.status(401).json({ error: 'Sin token' });
+    if (!header) {
+        return res.status(401).json({ error: 'No token' });
     }
 
+    const token = header.split(' ')[1];
+
     try {
-        const token = auth.split(' ')[1];
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
         next();
     } catch (err) {
-        res.status(401).json({ error: 'Token inválido' });
+        return res.status(401).json({ error: 'Token inválido' });
     }
 }
 
