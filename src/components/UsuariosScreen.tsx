@@ -28,18 +28,26 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
   });
 
   const cargarUsuarios = () => {
-    api.getUsuarios()
-      .then(data => {
-        setUsuarios(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+  setLoading(true);
 
-  useEffect(() => {
-    cargarUsuarios();
-  }, []);
+  api.getUsuarios()
+    .then(res => {
+      console.log("USUARIOS:", res);
 
+      if (!res.ok) {
+        setUsuarios([]);
+        return;
+      }
+
+      setUsuarios(res.data || []);
+    })
+    .catch(() => {
+      setUsuarios([]);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+};
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

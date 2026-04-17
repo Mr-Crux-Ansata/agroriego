@@ -1,9 +1,15 @@
-const BASE = 'http://127.0.0.1:3001/api';
+const BASE = 'http://localhost:3001/api';
 
+// ---------------------
+// TOKEN
+// ---------------------
 function getToken() {
     return localStorage.getItem('token');
 }
 
+// ---------------------
+// HEADERS
+// ---------------------
 function getHeaders(auth = true) {
     const headers = {
         'Content-Type': 'application/json',
@@ -18,14 +24,23 @@ function getHeaders(auth = true) {
 
     return headers;
 }
+
+// ---------------------
+// REQUEST CENTRAL
+// ---------------------
 async function request(url, options = {}, auth = true) {
     try {
+        console.log("➡️ URL:", `${BASE}${url}`);
+
         const res = await fetch(`${BASE}${url}`, {
             ...options,
             headers: getHeaders(auth),
         });
 
         const data = await res.json().catch(() => ({}));
+
+        console.log("📦 STATUS:", res.status);
+        console.log("📦 DATA:", data);
 
         if (!res.ok) {
             return {
@@ -36,10 +51,12 @@ async function request(url, options = {}, auth = true) {
 
         return {
             ok: true,
-            ...data,
+            data, // 👈 CONSISTENTE TODO EL SISTEMA
         };
 
     } catch (err) {
+        console.log("❌ FETCH ERROR REAL:", err);
+
         return {
             ok: false,
             error: 'Error de conexión',
@@ -47,6 +64,9 @@ async function request(url, options = {}, auth = true) {
     }
 }
 
+// ---------------------
+// API
+// ---------------------
 export const api = {
 
     // 🔑 LOGIN
@@ -56,7 +76,7 @@ export const api = {
             body: JSON.stringify({ email, password }),
         }, false);
 
-        // guardar token correctamente
+        // 🔥 ahora todo viene en res.data
         if (res.ok && res.data?.token) {
             localStorage.setItem('token', res.data.token);
         }
@@ -70,7 +90,10 @@ export const api = {
     },
 
     // 📍 PREDIOS
-    getPredios: () => request('/predios'),
+    getPredios: async () => {
+        const res = await request('/predios');
+        return res.data;
+    },
 
     crearPredio: (data) =>
         request('/predios', {
@@ -79,7 +102,10 @@ export const api = {
         }),
 
     // 🌱 AREAS
-    getAreas: () => request('/areas'),
+    getAreas: async () => {
+        const res = await request('/areas');
+        return res.data;
+    },
 
     updateAreaConfig: (areaId, config) =>
         request(`/areas/${areaId}/config`, {
@@ -97,7 +123,10 @@ export const api = {
     },
 
     // 🚨 ALERTAS
-    getAlertas: () => request('/alertas'),
+    getAlertas: async () => {
+        const res = await request('/alertas');
+        return res.data;
+    },
 
     marcarAlertaLeida: (id) =>
         request(`/alertas/${id}/leer`, {
@@ -105,7 +134,10 @@ export const api = {
         }),
 
     // 👤 USUARIOS
-    getUsuarios: () => request('/usuarios'),
+    getUsuarios: async () => {
+        const res = await request('/usuarios');
+        return res.data;
+    },
 
     crearUsuario: (data) =>
         request('/usuarios', {

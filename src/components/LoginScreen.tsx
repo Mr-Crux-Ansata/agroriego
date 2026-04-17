@@ -26,7 +26,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
     if (result.ok) {
       // 🔥 ya está guardado el token en api.js
-      onLogin(result.user); // si backend lo manda
+      onLogin(result.data.user); // si backend lo manda
     } else {
       setErr(result.error || 'Credenciales incorrectas');
       setLoading(false);
