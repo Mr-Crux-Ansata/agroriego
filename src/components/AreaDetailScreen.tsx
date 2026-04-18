@@ -19,22 +19,25 @@ export function AreaDetailScreen({ area, onNavigate }: AreaDetailScreenProps) {
   const [lecturas, setLecturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('humedad_suelo');
-  const [desde, setDesde] = useState(
-      new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
-  );
-  const [hasta, setHasta] = useState(
-      new Date().toISOString().split('T')[0]
-  );
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
   const areaId = area?.id_area || area?.id;
 
   useEffect(() => {
-    if (!areaId) return;
+    if (!areaId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     api.getTelemetria(areaId, desde, hasta).then(data => {
       setLecturas(Array.isArray(data) ? data.reverse() : []);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(error => {
+      console.error('Error cargando telemetria:', error);
+      setLecturas([]);
+      setLoading(false);
+    });
   }, [areaId, desde, hasta]);
 
   const tabLabels: Record<string, string> = {

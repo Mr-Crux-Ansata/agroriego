@@ -47,14 +47,46 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getPredios(), api.getAreas(), api.getAlertas()])
-        .then(([p, a, al]) => {
-          setPredios(Array.isArray(p) ? p : []);
-          setAreas(Array.isArray(a) ? a : []);
-          setAlertas(Array.isArray(al) ? al : []);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+    const cargarDatos = async () => {
+      try {
+        setLoading(true);
+        const [prediosData, areasData, alertasData] = await Promise.all([
+          api.getPredios(),
+          api.getAreas(),
+          api.getAlertas()
+        ]);
+
+        // Para cada área, obtener la última lectura de telemetría
+        const areasConTelemetria = await Promise.all(
+          areasData.map(async (area: any) => {
+            try {
+              const telemetria = await api.getTelemetria(area.id_area);
+              const ultimaLectura = telemetria && telemetria.length > 0 ? telemetria[0] : null;
+              return {
+                ...area,
+                humedad_suelo: ultimaLectura ? ultimaLectura.humedad_suelo : null,
+              };
+            } catch (error) {
+              console.error(`Error obteniendo telemetría para área ${area.id_area}:`, error);
+              return { ...area, humedad_suelo: null };
+            }
+          })
+        );
+
+        setPredios(Array.isArray(prediosData) ? prediosData : []);
+        setAreas(areasConTelemetria);
+        setAlertas(Array.isArray(alertasData) ? alertasData : []);
+      } catch (error) {
+        console.error('Error cargando datos del dashboard:', error);
+        setPredios([]);
+        setAreas([]);
+        setAlertas([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
   }, []);
 
   const alertasPendientes = alertas.filter(a => !a.leida).length;

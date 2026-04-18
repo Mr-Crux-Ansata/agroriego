@@ -14,10 +14,38 @@ export function AreasScreen({ userRole, onNavigate }: AreasScreenProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getAreas().then(data => {
-      setAreas(Array.isArray(data) ? data : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    const cargarDatos = async () => {
+      try {
+        setLoading(true);
+        const areasData = await api.getAreas();
+
+        // Para cada área, obtener la última lectura de telemetría
+        const areasConTelemetria = await Promise.all(
+          areasData.map(async (area: any) => {
+            try {
+              const telemetria = await api.getTelemetria(area.id_area);
+              const ultimaLectura = telemetria && telemetria.length > 0 ? telemetria[0] : null;
+              return {
+                ...area,
+                humedad_suelo: ultimaLectura ? ultimaLectura.humedad_suelo : null,
+              };
+            } catch (error) {
+              console.error(`Error obteniendo telemetría para área ${area.id_area}:`, error);
+              return { ...area, humedad_suelo: null };
+            }
+          })
+        );
+
+        setAreas(areasConTelemetria);
+      } catch (error) {
+        console.error('Error cargando áreas:', error);
+        setAreas([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
   }, []);
 
   const getStatusColor = (humedad: number, capacidad: number, marchitez: number) => {
