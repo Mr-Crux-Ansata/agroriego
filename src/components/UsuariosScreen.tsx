@@ -184,11 +184,16 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                 <div>
                   <h3>{usuario.nombre_completo}</h3>
                   <p>{usuario.email}</p>
-                  <Badge>{usuario.rol}</Badge>
+                  <Badge className={config.badgeClass}>{usuario.rol}</Badge>
                 </div>
               </div>
 
-              <Button onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}>
+              <Button 
+                onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+              >
                 <Trash2 />
               </Button>
             </Card>
