@@ -114,12 +114,13 @@ export const api = {
         }),
 
     // 📡 TELEMETRIA
-    getTelemetria: (areaId, desde, hasta) => {
+    getTelemetria: async (areaId, desde, hasta) => {
         const params = desde && hasta
             ? `?desde=${desde}&hasta=${hasta}`
             : '';
 
-        return request(`/areas/${areaId}/telemetria${params}`);
+        const res = await request(`/areas/${areaId}/telemetria${params}`);
+        return res.data;
     },
 
     // 🚨 ALERTAS
