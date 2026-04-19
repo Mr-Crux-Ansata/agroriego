@@ -31,6 +31,7 @@ CREATE TABLE Usuario (
                          password_hash   VARCHAR(255)    NOT NULL,
                          nombre_completo VARCHAR(100)    NOT NULL,
                          rol             VARCHAR(30)     NOT NULL,
+                         activo          BIT             NOT NULL DEFAULT 0,
                          CONSTRAINT chk_rol CHECK (rol IN ('Administrador Sistema', 'Administrador Predio', 'Operador Campo'))
 );
 GO

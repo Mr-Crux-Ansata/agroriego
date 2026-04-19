@@ -6,12 +6,10 @@ require('dotenv').config();
 
 const router = express.Router();
 
-// 🔥 TEST
 router.get('/test', (req, res) => {
     res.send('AUTH TEST OK');
 });
 
-// 🔹 REGISTRO
 router.post('/registro', async (req, res) => {
     const { email, password, nombre_completo, rol } = req.body;
 
@@ -33,9 +31,10 @@ router.post('/registro', async (req, res) => {
             .input('pass', sql.VarChar, hash)
             .input('nombre', sql.VarChar, nombre_completo)
             .input('rol', sql.VarChar, rol || 'Operador Campo')
+            .input('activo', sql.Bit, 0)
             .query(`
-                INSERT INTO Usuario (email, password_hash, nombre_completo, rol)
-                VALUES (@email, @pass, @nombre, @rol)
+                INSERT INTO Usuario (email, password_hash, nombre_completo, rol, activo)
+                VALUES (@email, @pass, @nombre, @rol, @activo)
             `);
 
         res.json({ ok: true });
@@ -43,6 +42,31 @@ router.post('/registro', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/activar', async (req, res) => {
+    const { token, password } = req.body;
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        const pool = await getPool();
+        const hash = await bcrypt.hash(password, 10);
+
+        await pool.request()
+            .input('id', sql.Int, decoded.id_usuario)
+            .input('password', sql.VarChar, hash)
+            .query(`
+                UPDATE Usuario
+                SET password_hash = @password, activo = 1
+                WHERE id_usuario = @id
+            `);
+
+        res.json({ ok: true });
+
+    } catch (err) {
+        res.status(400).json({ error: 'Token inválido o expirado' });
     }
 });
 
@@ -64,6 +88,10 @@ router.post('/login', async (req, res) => {
 
         if (!user) {
             return res.status(401).json({ error: 'Correo no registrado' });
+        }
+
+        if (!user.activo) {
+            return res.status(401).json({ error: 'Cuenta no activada. Verifica tu correo primero.' });
         }
 
         const valido = await bcrypt.compare(password, user.password_hash);

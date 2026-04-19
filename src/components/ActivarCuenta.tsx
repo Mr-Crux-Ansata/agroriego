@@ -1,0 +1,78 @@
+import { useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+
+import { api } from '../api';
+
+// UI (igual que usas en login)
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+
+const ActivarCuenta = () => {
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const token = searchParams.get('token');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (password !== confirmPassword) {
+            setError('Las contraseñas no coinciden');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        try {
+            const res = await api.activarCuenta(token, password);
+            if (res.ok) {
+                navigate('/login');
+            } else {
+                setError(res.error);
+            }
+        } catch (err) {
+            setError('Error al activar cuenta');
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <Card className="w-full max-w-md p-6">
+                <h2 className="text-2xl font-bold text-center mb-4">Activar Cuenta</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <Label htmlFor="password">Nueva Contraseña</Label>
+                        <Input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                        <Input
+                            id="confirmPassword"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                    <Button type="submit" disabled={loading} className="w-full">
+                        {loading ? 'Activando...' : 'Activar Cuenta'}
+                    </Button>
+                </form>
+            </Card>
+        </div>
+    );
+};
+
+export default ActivarCuenta;
