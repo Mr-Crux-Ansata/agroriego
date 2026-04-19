@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { api } from '../api';
 
@@ -10,14 +10,15 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 
 const ActivarCuenta = () => {
-    const [searchParams] = useSearchParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const token = searchParams.get('token');
+    const queryParams = new URLSearchParams(location.search);
+    const token = queryParams.get('token');
 
     const handleSubmit = async (e) => {
         e.preventDefault();

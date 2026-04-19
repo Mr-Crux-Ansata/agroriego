@@ -69,10 +69,43 @@ router.post('/', verificarToken, async (req, res) => {
         );
 
         // enviar correo
-        await enviarCorreo(email, token);
+        try {
+            await enviarCorreo(email, token);
+        } catch (emailError) {
+            // Si falla el envío, eliminar el usuario insertado
+            await pool.request()
+                .input('id', sql.Int, nuevoUsuarioId)
+                .query('DELETE FROM Usuario WHERE id_usuario = @id');
+            throw new Error('Error al enviar el correo de activación');
+        }
 
         res.json({ ok: true });
 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Eliminar usuario
+router.delete('/:id', verificarToken, async (req, res) => {
+    const { id } = req.params;
+
+    if (req.user.rol !== 'Administrador Sistema') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    try {
+        const pool = await getPool();
+
+        const result = await pool.request()
+            .input('id', sql.Int, parseInt(id, 10))
+            .query('DELETE FROM Usuario WHERE id_usuario = @id');
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

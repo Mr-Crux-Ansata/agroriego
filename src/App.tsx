@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { Button } from './components/ui/button';
 import { Sidebar } from './components/Sidebar';
 import { LoginScreen } from './components/LoginScreen';
+import ActivarCuenta from './components/ActivarCuenta';
 import { Dashboard } from './components/Dashboard';
 import { PrediosScreen } from './components/PrediosScreen';
 import { AreasScreen } from './components/AreasScreen';
@@ -16,11 +18,17 @@ import { UsuariosScreen } from './components/UsuariosScreen';
 import { PerfilScreen } from './components/PerfilScreen';
 
 export default function App() {
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedData, setSelectedData] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Detectar si hay un token de activación en la URL
+  const queryParams = new URLSearchParams(location.search);
+  const activationToken = queryParams.get('token');
+  const isActivating = activationToken !== null;
 
   const handleLogin = (user: any) => {
     setUserRole(
@@ -47,6 +55,9 @@ export default function App() {
   };
 
   if (!isLoggedIn) {
+    if (isActivating) {
+      return <ActivarCuenta />;
+    }
     return <LoginScreen onLogin={handleLogin} />;
   }
 
