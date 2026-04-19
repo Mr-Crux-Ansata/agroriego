@@ -30,11 +30,21 @@ app.use('/api/predios', require('./routes/predios'));
 app.use('/api/areas', require('./routes/areas'));
 app.use('/api/alertas', require('./routes/alertas'));
 
+// ERROR DE PARSEO JSON / BODY
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        console.error('❌ JSON malformado recibido:', err.message);
+        return res.status(400).json({ error: 'JSON malformado en el cuerpo de la petición' });
+    }
+    next(err);
+});
+
 // PUERTO
 const PORT = process.env.PORT || 3001;
 
 const server = app.listen(PORT, () => {
     console.log(`✅ Servidor corriendo en el puerto: ${PORT}`);
+    console.log('⚡ Servidor listo para recibir peticiones');
 });
 
 server.on('error', (error) => {
