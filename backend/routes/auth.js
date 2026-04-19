@@ -48,24 +48,37 @@ router.post('/registro', async (req, res) => {
 router.post('/activar', async (req, res) => {
     const { token, password } = req.body;
 
+    console.log("TOKEN RECIBIDO:", token);
+
+    console.log('ACTIVAR BODY:', req.body);
+
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("ID DEL TOKEN:", decoded.id_usuario, typeof decoded.id_usuario);
+        console.log('TOKEN DECODED:', decoded);
 
         const pool = await getPool();
         const hash = await bcrypt.hash(password, 10);
 
-        await pool.request()
-            .input('id', sql.Int, decoded.id_usuario)
-            .input('password', sql.VarChar, hash)
-            .query(`
-                UPDATE Usuario
-                SET password_hash = @password, activo = 1
-                WHERE id_usuario = @id
-            `);
+        const result = await pool.request()
+    .input('id', sql.Int, parseInt(decoded.id_usuario, 10))
+    .input('password', sql.VarChar, hash)
+    .query(`
+        UPDATE Usuario
+        SET password_hash = @password, activo = 1
+        WHERE id_usuario = @id
+    `);
+
+console.log("FILAS AFECTADAS:", result.rowsAffected[0]);
+
+if (result.rowsAffected[0] === 0) {
+    return res.status(400).json({ error: 'No se actualizó el usuario' });
+}
 
         res.json({ ok: true });
 
     } catch (err) {
+        console.error('ERROR ACTIVAR:', err);
         res.status(400).json({ error: 'Token inválido o expirado' });
     }
 });

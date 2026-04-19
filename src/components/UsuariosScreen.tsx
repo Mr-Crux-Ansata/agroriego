@@ -9,6 +9,9 @@ import { Badge } from './ui/badge';
 import { UserPlus, Shield, Eye, Trash2, AlertCircle, Home } from 'lucide-react';
 import { api } from '../api';
 
+console.log("API COMPLETA:", api);
+console.log("TIPO activarCuenta:", typeof api?.activarCuenta);
+
 interface UsuariosScreenProps {
   userRole: 'admin' | 'user';
 }

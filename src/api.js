@@ -1,5 +1,7 @@
 const BASE = 'http://localhost:3001/api';
 
+console.log("🚨 ESTE ES EL API CORRECTO");
+
 // ---------------------
 // TOKEN
 // ---------------------
@@ -76,7 +78,6 @@ export const api = {
             body: JSON.stringify({ email, password }),
         }, false);
 
-        // 🔥 ahora todo viene en res.data
         if (res.ok && res.data?.token) {
             localStorage.setItem('token', res.data.token);
         }
@@ -84,12 +85,10 @@ export const api = {
         return res;
     },
 
-    // 🔓 LOGOUT
     logout: () => {
         localStorage.removeItem('token');
     },
 
-    // 📍 PREDIOS
     getPredios: async () => {
         const res = await request('/predios');
         return res.data;
@@ -101,7 +100,12 @@ export const api = {
             body: JSON.stringify(data),
         }),
 
-    // 🌱 AREAS
+    activarCuenta: (token, password) =>
+        request('/auth/activar', {
+            method: 'POST',
+            body: JSON.stringify({ token, password }),
+        }, false),
+
     getAreas: async () => {
         const res = await request('/areas');
         return res.data;
@@ -150,4 +154,5 @@ export const api = {
         request(`/usuarios/${id}`, {
             method: 'DELETE',
         }),
+
 };

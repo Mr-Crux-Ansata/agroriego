@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { api } from '../api';
+import {api} from '../api';
+console.log(api);
 
 // UI (igual que usas en login)
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+
+console.log("API COMPLETA:", api);
+console.log("TIPO activarCuenta:", typeof api?.activarCuenta);
+
 
 const ActivarCuenta = () => {
     const location = useLocation();
@@ -26,16 +31,26 @@ const ActivarCuenta = () => {
             setError('Las contraseñas no coinciden');
             return;
         }
+
+        if (!token) {
+            setError('Token de activación no encontrado');
+            return;
+        }
+
         setLoading(true);
         setError('');
+        console.log('ACTIVAR TOKEN:', token);
+
         try {
             const res = await api.activarCuenta(token, password);
+            console.log('ACTIVAR RESPONSE:', res);
             if (res.ok) {
-                navigate('/login');
+                navigate('/login', { replace: true });
             } else {
-                setError(res.error);
+                setError(res.error || 'Error al activar cuenta');
             }
         } catch (err) {
+            console.error('ACTIVAR CATCH:', err);
             setError('Error al activar cuenta');
         }
         setLoading(false);

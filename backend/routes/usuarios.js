@@ -65,7 +65,7 @@ router.post('/', verificarToken, async (req, res) => {
         const token = jwt.sign(
             { id_usuario: nuevoUsuarioId },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '24h' } // Cambiado a 24 horas para testing
         );
 
         // enviar correo
