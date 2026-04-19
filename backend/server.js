@@ -11,10 +11,16 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.text({ type: 'text/*' }));
 
 // TEST
 app.get('/test', (req, res) => {
     res.send('Backend funcionando');
+});
+
+app.get('/tes', (req, res) => {
+    res.send('Backend funcionando (ruta alias /tes)');
 });
 
 // RUTAS (UNA SOLA VEZ)
@@ -27,13 +33,21 @@ app.use('/api/alertas', require('./routes/alertas'));
 // PUERTO
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, () => {
     console.log(`✅ Servidor corriendo en el puerto: ${PORT}`);
+});
 
+server.on('error', (error) => {
+    console.error('❌ Error en el servidor:', error.message);
+    process.exit(1);
+});
+
+(async () => {
     try {
         await getPool();
         console.log('✅ DB conectada');
     } catch (error) {
         console.error('❌ Error DB:', error.message);
+        console.log('⚠️ El servidor sigue escuchando aunque la conexión a la DB falló.');
     }
-});
+})();
