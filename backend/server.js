@@ -6,8 +6,8 @@ const { getPool } = require('./db');
 const app = express();
 
 app.use(cors({
-    origin: 'http://localhost:3000', // o el puerto de tu frontend
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: ['http://localhost:3000', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());

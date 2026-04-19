@@ -23,9 +23,25 @@ export function AlertasScreen() {
   }, []);
 
   const handleMarcarAtendida = async (alertaId: number) => {
-    await api.marcarAlertaLeida(alertaId);
-    cargarAlertas();
-  };
+  try {
+    const res = await api.marcarAlertaLeida(alertaId);
+
+    if (!res?.ok) {
+      throw new Error(res?.error || 'No fue posible marcar la alerta como atendida');
+    }
+    
+    setAlertas(prev => 
+      prev.map(alerta => 
+        alerta.id_alerta === alertaId 
+          ? { ...alerta, leida: 1, fecha_lectura: new Date().toISOString() } 
+          : alerta
+      )
+    );
+
+  } catch (error) {
+    console.error("Error al marcar como leída", error);
+  }
+};
 
   const getTipoIcon = (tipo: string) => {
     switch (tipo) {
