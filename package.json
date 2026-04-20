@@ -52,6 +52,7 @@
     "@types/react": "^19.2.14",
     "@types/react-native": "^0.72.8",
     "@vitejs/plugin-react-swc": "^3.10.2",
+    "typescript": "^6.0.3",
     "vite": "6.3.5"
   },
   "scripts": {

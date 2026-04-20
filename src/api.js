@@ -1,5 +1,11 @@
 const BASE = 'http://localhost:3001/api';
 
+const DEMO_USERS = [
+    { email: 'admin@agroriego.mx', password: 'admin123', rol: 'Administrador Sistema', nombre: 'Admin Sistema' },
+    { email: 'predio@agroriego.mx', password: 'predio123', rol: 'Administrador Predio', nombre: 'Admin Predio' },
+    { email: 'operador@agroriego.mx', password: 'op123', rol: 'Operador', nombre: 'Operador Demo' },
+];
+
 console.log("🚨 ESTE ES EL API CORRECTO");
 
 // ---------------------
@@ -77,6 +83,27 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ email, password }),
         }, false);
+
+        // Fallback local para desarrollo cuando backend/DB no estén disponibles.
+        if (!res.ok && res.error === 'Error de conexión') {
+            const demoUser = DEMO_USERS.find(
+                (u) => u.email === email && u.password === password
+            );
+
+            if (demoUser) {
+                const data = {
+                    token: 'demo-local-token',
+                    user: {
+                        email: demoUser.email,
+                        rol: demoUser.rol,
+                        nombre: demoUser.nombre,
+                    },
+                };
+
+                localStorage.setItem('token', data.token);
+                return { ok: true, data };
+            }
+        }
 
         if (res.ok && res.data?.token) {
             localStorage.setItem('token', res.data.token);

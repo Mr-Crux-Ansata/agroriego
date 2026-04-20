@@ -6,7 +6,7 @@ const { getPool } = require('./db');
 const app = express();
 
 app.use(cors({
-    origin: 'http://localhost:3000', // o el puerto de tu frontend
+    origin: ['http://localhost:3000', 'http://localhost:5173'], // React (3000) y Vite (5173)
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
