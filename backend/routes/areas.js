@@ -32,9 +32,12 @@ router.get('/:id/telemetria', verificarToken, async (req, res) => {
             .input('id', sql.VarChar, req.params.id);
 
         if (desde && hasta) {
+            const fechaDesde = new Date(`${desde}T00:00:00`);
+            const fechaHasta = new Date(`${hasta}T23:59:59.999`);
+
             request
-                .input('desde', sql.DateTime, new Date(desde))
-                .input('hasta', sql.DateTime, new Date(hasta));
+                .input('desde', sql.DateTime, fechaDesde)
+                .input('hasta', sql.DateTime, fechaHasta);
         }
 
         const result = await request.query(query + ' ORDER BY fecha_hora DESC');
