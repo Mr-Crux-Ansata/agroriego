@@ -52,84 +52,75 @@ const ActivarCuenta = () => {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.22),_transparent_26%),radial-gradient(circle_at_bottom,_rgba(6,182,212,0.12),_transparent_34%),linear-gradient(135deg,_#f7fbff_0%,_#effcf8_48%,_#eef9ff_100%)] px-4 py-12 sm:px-6 lg:px-8">
-            <div className="absolute left-[-4rem] top-20 h-56 w-56 rounded-full bg-blue-400/25 blur-3xl" />
-            <div className="absolute bottom-[-5rem] right-[-4rem] h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100 flex items-center justify-center p-4 sm:p-8">
+            <div className="w-full max-w-2xl mx-auto">
+                <Card className="w-full p-8 sm:p-12 rounded-3xl shadow-2xl bg-white border-none">
+                    <div className="text-center mb-16">
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <ShieldCheck className="w-10 h-10 text-white" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-800">Activar Cuenta</h1>
+                        <p className="text-gray-500 text-sm mt-1">Crea una contraseña segura para completar tu acceso</p>
+                    </div>
 
-            <div className="w-full max-w-xl mx-auto">
-                <Card className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/96 shadow-[0_30px_80px_rgba(15,23,42,0.16)] backdrop-blur">
-                    <div className="px-6 py-12 sm:px-10 sm:py-14">
-                        <div className="mx-auto max-w-lg text-center">
-                            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-blue-600 via-cyan-500 to-emerald-500 text-white shadow-[0_16px_35px_rgba(37,99,235,0.28)] ring-1 ring-white/30">
-                                <ShieldCheck className="h-10 w-10" strokeWidth={2.2} />
+                    <div className="flex justify-center w-full">
+                        <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
+                            <div className="space-y-3">
+                                <Label htmlFor="password">Nueva Contraseña</Label>
+                                <div className="relative w-full">
+                                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                        <KeyRound className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="Mínimo 8 caracteres"
+                                        className="pl-10 rounded-xl w-full"
+                                        required
+                                    />
+                                </div>
                             </div>
 
-                            <div className="mt-8 space-y-3">
-                                <p className="text-xs font-semibold uppercase tracking-[0.38em] text-cyan-700">
-                                    Activación segura
-                                </p>
-                                <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                                    Activa Tu Cuenta
-                                </h2>
-                                <p className="mx-auto max-w-md text-sm leading-6 text-slate-600 sm:text-base">
-                                    Crea una contraseña segura para completar tu acceso a AgroRiego.
-                                </p>
+                            <div className="space-y-3">
+                                <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                                <div className="relative w-full">
+                                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                        <Lock className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="Repite la contraseña"
+                                        className="pl-10 rounded-xl w-full"
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="mx-auto mt-12 max-w-lg">
-                            <form onSubmit={handleSubmit} className="space-y-6 rounded-[1.5rem] border border-cyan-100 bg-gradient-to-b from-white to-cyan-50/60 p-6 sm:p-8 shadow-[0_16px_40px_rgba(8,145,178,0.08)]">
-                                <div className="space-y-3">
-                                    <Label htmlFor="password">Nueva Contraseña</Label>
-                                    <div className="relative">
-                                        <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-600" />
-                                        <Input
-                                            id="password"
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="Mínimo 8 caracteres"
-                                            className="h-12 rounded-2xl border-cyan-100 bg-white pl-10 shadow-sm transition focus-visible:ring-cyan-500"
-                                            required
-                                        />
-                                    </div>
+                            {error && (
+                                <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3">
+                                    {error}
                                 </div>
+                            )}
 
-                                <div className="space-y-3">
-                                    <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-                                    <div className="relative">
-                                        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-                                        <Input
-                                            id="confirmPassword"
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="Repite la contraseña"
-                                            className="h-12 rounded-2xl border-emerald-100 bg-white pl-10 shadow-sm transition focus-visible:ring-emerald-500"
-                                            required
-                                        />
-                                    </div>
-                                </div>
+                            <div className="h-1" />
 
-                                {error && (
-                                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                        {error}
-                                    </div>
-                                )}
+                            <Button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full h-12 mt-6 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 rounded-xl font-bold text-white shadow-md"
+                            >
+                                {loading ? 'Activando...' : 'Activar Cuenta'}
+                            </Button>
 
-                                <Button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="h-12 w-full rounded-2xl bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-500 font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-blue-700 hover:via-cyan-700 hover:to-emerald-600"
-                                >
-                                    {loading ? 'Activando cuenta...' : 'Activar Cuenta'}
-                                </Button>
-
-                                <p className="pt-2 text-center text-xs text-slate-600">
-                                    Al activar tu cuenta, podrás ingresar al panel de control.
-                                </p>
-                            </form>
-                        </div>
+                            <p className="text-center text-xs text-gray-400 mt-8">
+                                Al activar tu cuenta, podrás ingresar al panel de control.
+                            </p>
+                        </form>
                     </div>
                 </Card>
             </div>
