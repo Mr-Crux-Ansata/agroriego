@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db');
 const { verificarToken } = require('../middleware/auth');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { enviarCorreo } = require('../utils/email');
 

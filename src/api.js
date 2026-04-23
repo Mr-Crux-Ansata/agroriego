@@ -9,6 +9,17 @@ function getToken() {
     return localStorage.getItem('token');
 }
 
+function getStoredUser() {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
 // ---------------------
 // HEADERS
 // ---------------------
@@ -80,13 +91,30 @@ export const api = {
 
         if (res.ok && res.data?.token) {
             localStorage.setItem('token', res.data.token);
+            if (res.data.user) {
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+            }
         }
 
         return res;
     },
 
+    getCurrentUser: async () => {
+        const res = await request('/auth/me');
+
+        if (res.ok && res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            return res.data.user;
+        }
+
+        return getStoredUser();
+    },
+
+    getStoredUser,
+
     logout: () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
     },
 
     getPredios: async () => {

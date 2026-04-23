@@ -9,8 +9,7 @@ import { Badge } from './ui/badge';
 import { UserPlus, Shield, Eye, Trash2, AlertCircle, Home } from 'lucide-react';
 import { api } from '../api';
 
-console.log("API COMPLETA:", api);
-console.log("TIPO activarCuenta:", typeof api?.activarCuenta);
+
 
 interface UsuariosScreenProps {
   userRole: 'admin' | 'user';
@@ -195,7 +194,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                 onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}
                 variant="outline"
                 size="sm"
-                className="rounded-xl"
+                className="bg-black text white rounded-xl"
               >
                 <Trash2 />
               </Button>
@@ -224,13 +223,6 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                 type="email"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
-              />
-
-              <Input
-                placeholder="Contraseña"
-                type="password"
-                value={formData.password}
-                onChange={e => setFormData({ ...formData, password: e.target.value })}
               />
 
               <Select

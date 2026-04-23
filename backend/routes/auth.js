@@ -1,7 +1,8 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPool, sql } = require('../db');
+const { verificarToken } = require('../middleware/auth');
 require('dotenv').config();
 
 const router = express.Router();
@@ -129,6 +130,27 @@ router.post('/login', async (req, res) => {
             },
         });
 
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/me', verificarToken, async (req, res) => {
+    try {
+        const pool = await getPool();
+
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .query('SELECT id_usuario, email, nombre_completo, rol, activo FROM Usuario WHERE id_usuario = @id');
+
+        const user = result.recordset[0];
+
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json({ user });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });

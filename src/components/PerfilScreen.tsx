@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,16 +8,22 @@ import { UserCircle, Save, Shield, Eye, Mail, Phone, MapPin } from 'lucide-react
 
 interface PerfilScreenProps {
   userRole: 'admin' | 'user';
+  sessionUser: {
+    id_usuario: number;
+    email: string;
+    nombre_completo: string;
+    rol: string;
+  } | null;
 }
 
-export function PerfilScreen({ userRole }: PerfilScreenProps) {
+export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    nombre: 'Juan Pérez',
-    email: 'juan.perez@agroriego.com',
-    telefono: '+52 555 123 4567',
-    cargo: 'Gerente de Operaciones',
-    ubicacion: 'Ciudad de México, México',
+    nombre: sessionUser?.nombre_completo || 'Usuario',
+    email: sessionUser?.email || '',
+    telefono: '',
+    cargo: sessionUser?.rol || '',
+    ubicacion: '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -25,6 +31,17 @@ export function PerfilScreen({ userRole }: PerfilScreenProps) {
     nueva: '',
     confirmar: '',
   });
+
+  useEffect(() => {
+    if (!sessionUser) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      nombre: sessionUser.nombre_completo,
+      email: sessionUser.email,
+      cargo: sessionUser.rol,
+    }));
+  }, [sessionUser]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
