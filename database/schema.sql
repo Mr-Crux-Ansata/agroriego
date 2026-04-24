@@ -81,6 +81,40 @@ GO
 -- ============================================================
 -- 3. TABLA: Predio
 -- ============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ConfiguracionGeneral' AND xtype='U')
+CREATE TABLE ConfiguracionGeneral (
+    id_configuracion                 INT IDENTITY(1,1) PRIMARY KEY,
+    frecuencia_actualizacion_min     INT             NOT NULL DEFAULT 10,
+    notificaciones_email             BIT             NOT NULL DEFAULT 1,
+    email_notificaciones             VARCHAR(100)    NOT NULL DEFAULT 'admin@agroriego.com',
+    nombre_cliente                   VARCHAR(150)    NOT NULL DEFAULT 'AgroRiego Mexico S.A. de C.V.',
+    rfc                              VARCHAR(13)     NULL,
+    email_contacto                   VARCHAR(100)    NULL,
+    actualizado_en                   DATETIME        NOT NULL DEFAULT GETDATE()
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM ConfiguracionGeneral)
+INSERT INTO ConfiguracionGeneral (
+    frecuencia_actualizacion_min,
+    notificaciones_email,
+    email_notificaciones,
+    nombre_cliente,
+    rfc,
+    email_contacto
+) VALUES (
+    10,
+    1,
+    'admin@agroriego.com',
+    'AgroRiego Mexico S.A. de C.V.',
+    'ARM123456ABC',
+    'contacto@agroriego.com'
+);
+GO
+
+-- ============================================================
+-- 4. TABLA: Predio
+-- ============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Predio' AND xtype='U')
 CREATE TABLE Predio (
                         id_predio   INT IDENTITY(1,1) PRIMARY KEY,

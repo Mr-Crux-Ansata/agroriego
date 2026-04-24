@@ -22,6 +22,7 @@ interface SensorMapeado {
   id: string;
   tipo: string;
   area: string;
+  areaId: string;
   predio: string;
   predioId: string;
   valor: number | null;
@@ -35,6 +36,7 @@ interface SensorMapeado {
 
 export function SensoresScreen() {
   const [filtroPredio, setFiltroPredio] = useState('todos');
+  const [filtroArea, setFiltroArea] = useState('todas');
   const [filtroEstado, setFiltroEstado] = useState('todos');
 
   const [sensores, setSensores] = useState<SensorMapeado[]>([]);
@@ -77,6 +79,7 @@ export function SensoresScreen() {
                 id: `${area.id_area}-H`,
                 tipo: 'Humedad del Suelo',
                 area: area.nombre,
+                areaId: area.id_area.toString(),
                 predio: nombrePredio,
                 predioId: predioIdStr,
                 valor: ultimaLectura.humedad_suelo,
@@ -92,6 +95,7 @@ export function SensoresScreen() {
                 id: `${area.id_area}-T`,
                 tipo: 'Temperatura Ambiental',
                 area: area.nombre,
+                areaId: area.id_area.toString(),
                 predio: nombrePredio,
                 predioId: predioIdStr,
                 valor: ultimaLectura.temperatura_ambiental,
@@ -107,6 +111,7 @@ export function SensoresScreen() {
                 id: `${area.id_area}-HR`,
                 tipo: 'Humedad Relativa',
                 area: area.nombre,
+                areaId: area.id_area.toString(),
                 predio: nombrePredio,
                 predioId: predioIdStr,
                 valor: ultimaLectura.humedad_relativa,
@@ -122,6 +127,7 @@ export function SensoresScreen() {
                 id: `${area.id_area}-ET`,
                 tipo: 'Evapotranspiración',
                 area: area.nombre,
+                areaId: area.id_area.toString(),
                 predio: nombrePredio,
                 predioId: predioIdStr,
                 valor: ultimaLectura.evapotranspiracion,
@@ -138,6 +144,7 @@ export function SensoresScreen() {
                 id: `${area.id_area}-F`,
                 tipo: 'Telemetría',
                 area: area.nombre,
+                areaId: area.id_area.toString(),
                 predio: nombrePredio,
                 predioId: predioIdStr,
                 valor: null,
@@ -167,8 +174,54 @@ export function SensoresScreen() {
 
   const filteredSensores = sensores.filter(sensor => {
     if (filtroPredio !== 'todos' && sensor.predioId !== filtroPredio) return false;
+    if (filtroArea !== 'todas' && sensor.areaId !== filtroArea) return false;
     if (filtroEstado !== 'todos' && sensor.estado !== filtroEstado) return false;
     return true;
+  });
+
+  const areasDisponibles = Object.values(
+    sensores.reduce((acc, sensor) => {
+      if (!acc[sensor.areaId]) {
+        acc[sensor.areaId] = {
+          areaId: sensor.areaId,
+          area: sensor.area,
+          predioId: sensor.predioId,
+          predio: sensor.predio,
+        };
+      }
+      return acc;
+    }, {} as Record<string, { areaId: string; area: string; predioId: string; predio: string }>),
+  )
+    .filter((a) => filtroPredio === 'todos' || a.predioId === filtroPredio)
+    .sort((a, b) => {
+      const byPredio = a.predio.localeCompare(b.predio);
+      if (byPredio !== 0) return byPredio;
+      return a.area.localeCompare(b.area);
+    });
+
+  const sensoresPorPredioYArea = Object.values(
+    filteredSensores.reduce((acc, sensor) => {
+      if (!acc[sensor.predioId]) {
+        acc[sensor.predioId] = {
+          predioId: sensor.predioId,
+          predio: sensor.predio,
+          areas: {} as Record<string, { areaId: string; area: string; sensores: SensorMapeado[] }>,
+        };
+      }
+
+      if (!acc[sensor.predioId].areas[sensor.areaId]) {
+        acc[sensor.predioId].areas[sensor.areaId] = {
+          areaId: sensor.areaId,
+          area: sensor.area,
+          sensores: [],
+        };
+      }
+
+      acc[sensor.predioId].areas[sensor.areaId].sensores.push(sensor);
+      return acc;
+    }, {} as Record<string, { predioId: string; predio: string; areas: Record<string, { areaId: string; area: string; sensores: SensorMapeado[] }> }>),
+  ).sort((a, b) => {
+    return a.predio.localeCompare(b.predio);
   });
 
   const getEstadoBadge = (estado: string) => {
@@ -259,10 +312,16 @@ export function SensoresScreen() {
           {/* Filtros */}
           <Card className="p-6 rounded-2xl shadow-sm">
             <h2 className="text-lg mb-4">Filtros</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm text-gray-600">Predio</label>
-                <Select value={filtroPredio} onValueChange={setFiltroPredio}>
+                <Select
+                  value={filtroPredio}
+                  onValueChange={(valor) => {
+                    setFiltroPredio(valor);
+                    setFiltroArea('todas');
+                  }}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -273,6 +332,23 @@ export function SensoresScreen() {
                         <SelectItem key={p.id_predio} value={p.id_predio.toString()}>
                           {p.nombre}
                         </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-600">Área de Riego</label>
+                <Select value={filtroArea} onValueChange={setFiltroArea}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas las Áreas</SelectItem>
+                    {areasDisponibles.map((a) => (
+                      <SelectItem key={a.areaId} value={a.areaId}>
+                        {a.predio} - {a.area}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -295,53 +371,77 @@ export function SensoresScreen() {
             </div>
           </Card>
 
-          {/* Lista de Sensores */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSensores.map((sensor) => {
-              const Icon = sensor.icon;
-              const badge = getEstadoBadge(sensor.estado);
-              const BadgeIcon = badge.icon;
+          {/* Lista de Sensores por Predio y Área */}
+          <div className="space-y-6">
+            {sensoresPorPredioYArea.map((grupoPredio) => (
+              <Card key={grupoPredio.predioId} className="p-6 rounded-2xl shadow-sm">
+                <div className="flex items-center justify-between mb-4 border-b pb-4">
+                  <h3 className="text-lg font-medium">Predio: {grupoPredio.predio}</h3>
+                  <Badge className="bg-slate-100 text-slate-700 w-fit">
+                    {Object.values(grupoPredio.areas).reduce((acc, area) => acc + area.sensores.length, 0)} sensores
+                  </Badge>
+                </div>
 
-              return (
-                  <Card key={sensor.id} className="p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={`w-12 h-12 ${sensor.bgColor} rounded-xl flex items-center justify-center`}>
-                        <Icon className={`w-6 h-6 ${sensor.color}`} />
+                <div className="space-y-6">
+                  {Object.values(grupoPredio.areas)
+                    .sort((a, b) => a.area.localeCompare(b.area))
+                    .map((grupoArea) => (
+                      <div key={grupoArea.areaId}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                          <h4 className="text-base font-medium text-gray-800">Área: {grupoArea.area}</h4>
+                          <Badge className="bg-blue-100 text-blue-700 w-fit">{grupoArea.sensores.length} sensores</Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {grupoArea.sensores.map((sensor) => {
+                            const Icon = sensor.icon;
+                            const badge = getEstadoBadge(sensor.estado);
+                            const BadgeIcon = badge.icon;
+
+                            return (
+                              <Card key={sensor.id} className="p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-start justify-between mb-4">
+                                  <div className={`w-12 h-12 ${sensor.bgColor} rounded-xl flex items-center justify-center`}>
+                                    <Icon className={`w-6 h-6 ${sensor.color}`} />
+                                  </div>
+                                  <Badge className={badge.class}>
+                                    <BadgeIcon className="w-3 h-3 mr-1" />
+                                    {badge.text}
+                                  </Badge>
+                                </div>
+
+                                <h5 className="font-medium mb-1">{sensor.tipo}</h5>
+
+                                <div className="mb-4">
+                                  {sensor.valor !== null ? (
+                                    <div className="flex items-baseline gap-2">
+                                      <span className={`text-3xl ${sensor.color}`}>
+                                        {sensor.valor}
+                                      </span>
+                                      <span className="text-lg text-gray-600">
+                                        {sensor.unidad}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-2xl text-gray-400">
+                                      Sin lectura
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="space-y-1 text-xs text-gray-500 border-t pt-3">
+                                  <p><span className="font-medium">ID:</span> {sensor.id}</p>
+                                  <p><span className="font-medium">Última lectura:</span> {sensor.ultimaLectura}</p>
+                                </div>
+                              </Card>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <Badge className={badge.class}>
-                        <BadgeIcon className="w-3 h-3 mr-1" />
-                        {badge.text}
-                      </Badge>
-                    </div>
-
-                    <h3 className="font-medium mb-1">{sensor.tipo}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{sensor.area}</p>
-
-                    <div className="mb-4">
-                      {sensor.valor !== null ? (
-                          <div className="flex items-baseline gap-2">
-                      <span className={`text-3xl ${sensor.color}`}>
-                        {sensor.valor}
-                      </span>
-                            <span className="text-lg text-gray-600">
-                        {sensor.unidad}
-                      </span>
-                          </div>
-                      ) : (
-                          <div className="text-2xl text-gray-400">
-                            Sin lectura
-                          </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 text-xs text-gray-500 border-t pt-3">
-                      <p><span className="font-medium">Predio:</span> {sensor.predio}</p>
-                      <p><span className="font-medium">ID:</span> {sensor.id}</p>
-                      <p><span className="font-medium">Última lectura:</span> {sensor.ultimaLectura}</p>
-                    </div>
-                  </Card>
-              );
-            })}
+                    ))}
+                </div>
+              </Card>
+            ))}
           </div>
 
           {filteredSensores.length === 0 && (
