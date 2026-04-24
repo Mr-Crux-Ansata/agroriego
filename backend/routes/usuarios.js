@@ -53,16 +53,6 @@ async function ensureUsuarioProfileColumns(pool) {
             SELECT *
             FROM sys.columns
             WHERE object_id = OBJECT_ID('Usuario')
-              AND name = 'telefono'
-        )
-        BEGIN
-            ALTER TABLE Usuario ADD telefono VARCHAR(20) NULL;
-        END
-
-        IF NOT EXISTS (
-            SELECT *
-            FROM sys.columns
-            WHERE object_id = OBJECT_ID('Usuario')
               AND name = 'foto_perfil_url'
         )
         BEGIN
@@ -91,7 +81,7 @@ router.get('/perfil', verificarToken, async (req, res) => {
         const result = await pool.request()
             .input('id', sql.Int, req.user.id_usuario)
             .query(`
-                SELECT id_usuario, email, nombre_completo, rol, telefono, foto_perfil_url
+                SELECT id_usuario, email, nombre_completo, rol, foto_perfil_url
                 FROM Usuario
                 WHERE id_usuario = @id
             `);
@@ -108,7 +98,7 @@ router.get('/perfil', verificarToken, async (req, res) => {
 });
 
 router.put('/perfil', verificarToken, async (req, res) => {
-    const { nombre_completo, telefono } = req.body;
+    const { nombre_completo } = req.body;
 
     try {
         const pool = await getPool();
@@ -116,14 +106,12 @@ router.put('/perfil', verificarToken, async (req, res) => {
         const result = await pool.request()
             .input('id', sql.Int, req.user.id_usuario)
             .input('nombre', sql.VarChar, nombre_completo || null)
-            .input('telefono', sql.VarChar, telefono || null)
             .query(`
                 UPDATE Usuario
-                SET nombre_completo = COALESCE(@nombre, nombre_completo),
-                    telefono = @telefono
+                SET nombre_completo = COALESCE(@nombre, nombre_completo)
                 WHERE id_usuario = @id;
 
-                SELECT id_usuario, email, nombre_completo, rol, telefono, foto_perfil_url
+                SELECT id_usuario, email, nombre_completo, rol, foto_perfil_url
                 FROM Usuario
                 WHERE id_usuario = @id;
             `);
@@ -162,7 +150,7 @@ router.post('/perfil/foto', verificarToken, uploadSingleImage, async (req, res) 
                 SET foto_perfil_url = @foto
                 WHERE id_usuario = @id;
 
-                SELECT id_usuario, email, nombre_completo, rol, telefono, foto_perfil_url
+                SELECT id_usuario, email, nombre_completo, rol, foto_perfil_url
                 FROM Usuario
                 WHERE id_usuario = @id;
             `);

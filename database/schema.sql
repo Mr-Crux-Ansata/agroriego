@@ -32,26 +32,27 @@ CREATE TABLE Usuario (
                          nombre_completo     VARCHAR(100)    NOT NULL,
                          rol                 VARCHAR(30)     NOT NULL,
                          activo              BIT             NOT NULL DEFAULT 0,
-                         telefono            VARCHAR(20)     NULL,
-                         sms_codigo          VARCHAR(6)      NULL,
-                         sms_codigo_expira   DATETIME        NULL,
                          foto_perfil_url     VARCHAR(255)    NULL,
                          CONSTRAINT chk_rol CHECK (rol IN ('Administrador Sistema', 'Administrador Predio', 'Operador Campo'))
 );
 GO
 
 -- Migraciones para bases de datos existentes
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'telefono')
-    ALTER TABLE Usuario ADD telefono VARCHAR(20) NULL;
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'telefono')
+    ALTER TABLE Usuario DROP COLUMN telefono;
 GO
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo')
-    ALTER TABLE Usuario ADD sms_codigo VARCHAR(6) NULL;
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo')
+    ALTER TABLE Usuario DROP COLUMN sms_codigo;
 GO
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo_expira')
-    ALTER TABLE Usuario ADD sms_codigo_expira DATETIME NULL;
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo_expira')
+    ALTER TABLE Usuario DROP COLUMN sms_codigo_expira;
 GO
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'foto_perfil_url')
     ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
+GO
+
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PerfilCliente') AND name = 'telefono_contacto')
+    ALTER TABLE PerfilCliente DROP COLUMN telefono_contacto;
 GO
 
 -- ============================================================
@@ -64,7 +65,6 @@ CREATE TABLE PerfilCliente (
                                nombre_cliente_empresa  VARCHAR(150)    NOT NULL,
                                rfc                     VARCHAR(13)     NULL UNIQUE,
                                email_contacto          VARCHAR(100)    NULL,
-                               telefono_contacto       VARCHAR(20)     NULL,
                                CONSTRAINT fk_perfil_usuario FOREIGN KEY (id_usuario)
                                    REFERENCES Usuario(id_usuario) ON DELETE CASCADE
 );

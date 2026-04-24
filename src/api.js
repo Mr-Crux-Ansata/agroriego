@@ -162,16 +162,10 @@ export const api = {
             body: JSON.stringify(data),
         }),
 
-    enviarCodigoSms: (token, telefono) =>
-        request('/auth/enviar-codigo', {
-            method: 'POST',
-            body: JSON.stringify({ token, telefono }),
-        }, false),
-
-    activarCuenta: (token, password, telefono, codigo_sms) =>
+    activarCuenta: (token, password) =>
         request('/auth/activar', {
             method: 'POST',
-            body: JSON.stringify({ token, password, telefono, codigo_sms }),
+            body: JSON.stringify({ token, password }),
         }, false),
 
     getAreas: async () => {

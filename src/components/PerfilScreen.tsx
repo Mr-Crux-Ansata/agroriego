@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { UserCircle, Save, Shield, Eye, Mail, Phone, MapPin } from 'lucide-react';
+import { UserCircle, Save, Shield, Eye, Mail, MapPin } from 'lucide-react';
 import { api } from '../api';
 
 interface PerfilScreenProps {
@@ -22,7 +22,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
   const [formData, setFormData] = useState({
     nombre: sessionUser?.nombre_completo || 'Usuario',
     email: sessionUser?.email || '',
-    telefono: '',
     cargo: sessionUser?.rol || '',
     ubicacion: '',
   });
@@ -56,7 +55,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
         ...prev,
         nombre: perfil.nombre_completo || prev.nombre,
         email: perfil.email || prev.email,
-        telefono: perfil.telefono || '',
         cargo: perfil.rol || prev.cargo,
       }));
       setFotoPerfilUrl(perfil.foto_perfil_url || '');
@@ -69,7 +67,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
     e.preventDefault();
     const res = await api.actualizarMiPerfil({
       nombre_completo: formData.nombre,
-      telefono: formData.telefono,
     });
 
     if (!res.ok) {
@@ -82,7 +79,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
       setFormData((prev) => ({
         ...prev,
         nombre: perfil.nombre_completo || prev.nombre,
-        telefono: perfil.telefono || '',
       }));
       setFotoPerfilUrl(perfil.foto_perfil_url || '');
     }
@@ -236,21 +232,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="pl-10 rounded-xl"
-                            disabled={!isEditing}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="telefono">Teléfono</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <Input
-                            id="telefono"
-                            type="tel"
-                            value={formData.telefono}
-                            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                             className="pl-10 rounded-xl"
                             disabled={!isEditing}
                         />
