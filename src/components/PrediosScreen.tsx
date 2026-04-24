@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,6 +15,7 @@ interface PrediosScreenProps {
 }
 
 type MapPointType = 'predio' | 'area' | 'sensor';
+type MapLayerFilter = 'all' | MapPointType;
 
 interface MapPoint {
   key: string;
@@ -38,6 +39,20 @@ const markerStyles: Record<MapPointType, { bg: string; text: string; border: str
   predio: { bg: '#1d4ed8', text: 'P', border: '#bfdbfe' },
   area: { bg: '#059669', text: 'A', border: '#bbf7d0' },
   sensor: { bg: '#f59e0b', text: 'S', border: '#fde68a' },
+};
+
+const predioColorPalette = ['#1d4ed8', '#0f766e', '#9333ea', '#dc2626', '#ea580c', '#4f46e5', '#15803d'];
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const safeHex = hex.replace('#', '');
+  const normalizedHex = safeHex.length === 3
+    ? safeHex.split('').map((char) => char + char).join('')
+    : safeHex;
+  const bigint = Number.parseInt(normalizedHex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
 const markerIcons: Record<MapPointType, L.DivIcon> = {
@@ -93,6 +108,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const [error, setError] = useState('');
   const [selectedPredioId, setSelectedPredioId] = useState<number | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [activeLayer, setActiveLayer] = useState<MapLayerFilter>('all');
   const [formData, setFormData] = useState({
     nombre: '',
     latitud: '',
@@ -181,6 +197,36 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     };
   });
 
+  const predioColorMap = useMemo(() => {
+    const colorMap = new Map<number, string>();
+    prediosMapeados.forEach((predio, index) => {
+      colorMap.set(Number(predio.id_predio), predioColorPalette[index % predioColorPalette.length]);
+    });
+    return colorMap;
+  }, [prediosMapeados]);
+
+  const getPredioColor = (idPredio: number) => predioColorMap.get(Number(idPredio)) ?? markerStyles.predio.bg;
+
+  const buildPointIcon = (point: MapPoint, muted: boolean) => {
+    const base = markerStyles[point.type];
+    const size = point.type === 'predio' ? 28 : point.type === 'area' ? 24 : 22;
+    const anchor = Math.floor(size / 2);
+    const bgColor = muted
+      ? '#9ca3af'
+      : point.type === 'predio'
+        ? getPredioColor(point.id_predio)
+        : base.bg;
+    const borderColor = muted ? '#d1d5db' : base.border;
+    const textColor = muted ? '#ffffff' : point.type === 'sensor' ? '#111827' : '#ffffff';
+
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${bgColor};color:${textColor};border:2px solid ${borderColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${point.type === 'predio' ? 12 : 11}px;box-shadow:0 2px 8px rgba(0,0,0,.2);">${base.text}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [anchor, anchor],
+    });
+  };
+
   const getAreaMarkerPosition = (predioLat: number, predioLng: number, index: number, total: number) => {
     const angle = (index / Math.max(total, 1)) * Math.PI * 2;
     const ring = 0.0012 + (index % 3) * 0.00035;
@@ -240,12 +286,13 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const predioSeleccionado = selectedPredioId
     ? prediosMapeados.find((predio) => Number(predio.id_predio) === Number(selectedPredioId))
     : null;
+  const selectedPredioColor = predioSeleccionado ? getPredioColor(predioSeleccionado.id_predio) : null;
 
   const areasDelPredioSeleccionado = predioSeleccionado
     ? getAreasDePredio(predioSeleccionado.id_predio)
     : [];
 
-  const visibleMapPoints = allMapPoints.filter((point) => {
+  const selectionFilteredPoints = allMapPoints.filter((point) => {
     if (selectedAreaId) {
       return point.id_area === selectedAreaId || (point.type === 'predio' && point.id_predio === Number(selectedPredioId));
     }
@@ -253,6 +300,11 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
       return point.id_predio === Number(selectedPredioId);
     }
     return true;
+  });
+
+  const visibleMapPoints = selectionFilteredPoints.filter((point) => {
+    if (activeLayer === 'all') return true;
+    return point.type === activeLayer;
   });
 
   const selectedAreaPoint = selectedAreaId
@@ -353,7 +405,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                       <Marker
                         key={point.key}
                         position={[point.lat, point.lng]}
-                        icon={markerIcons[point.type]}
+                        icon={buildPointIcon(point, selectedPredioId !== null && point.id_predio !== Number(selectedPredioId))}
                         eventHandlers={{
                           click: () => {
                             if (point.type === 'predio') {
@@ -376,7 +428,13 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
 
                 <div
                   className="rounded-2xl border border-gray-200 bg-white p-3 md:overflow-auto"
-                  style={{ maxHeight: 'clamp(560px, 78vh, 920px)' }}
+                  style={{
+                    maxHeight: 'clamp(560px, 78vh, 920px)',
+                    borderColor: selectedPredioColor ?? undefined,
+                    boxShadow: selectedPredioColor
+                      ? `inset 0 0 0 1px ${hexToRgba(selectedPredioColor, 0.12)}`
+                      : undefined,
+                  }}
                 >
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-gray-700">Ubicaciones detectadas</p>
@@ -401,9 +459,18 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                     </div>
                   ) : selectedPredioId && predioSeleccionado ? (
                     <div className="space-y-3">
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                      <div
+                        className="rounded-xl border p-3"
+                        style={{
+                          borderColor: selectedPredioColor ? hexToRgba(selectedPredioColor, 0.32) : undefined,
+                          backgroundColor: selectedPredioColor ? hexToRgba(selectedPredioColor, 0.1) : undefined,
+                        }}
+                      >
                         <div className="flex items-center gap-2">
-                          <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
+                          <span
+                            className="inline-block h-3 w-3 rounded-full"
+                            style={{ backgroundColor: getPredioColor(predioSeleccionado.id_predio) }}
+                          />
                           <p className="text-sm font-semibold text-gray-800">{predioSeleccionado.nombre}</p>
                         </div>
                         <p className="mt-1 text-xs text-gray-600">
@@ -459,7 +526,10 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                             className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100"
                           >
                             <div className="flex items-center gap-2">
-                              <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
+                              <span
+                                className="inline-block h-3 w-3 rounded-full"
+                                style={{ backgroundColor: getPredioColor(predio.id_predio) }}
+                              />
                               <p className="text-sm font-semibold text-gray-800">{predio.nombre}</p>
                             </div>
                             <p className="mt-1 text-xs text-gray-600">
@@ -492,9 +562,57 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
             </div>
 
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-600">
-              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-blue-700" /> Predio</span>
-              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-600" /> Área de riego</span>
-              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" /> Sensor</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activeLayer === 'all' ? 'default' : 'outline'}
+                  className="h-8 rounded-lg"
+                  onClick={() => setActiveLayer('all')}
+                >
+                  Todo
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activeLayer === 'predio' ? 'default' : 'outline'}
+                  className="h-8 rounded-lg"
+                  onClick={() => setActiveLayer('predio')}
+                >
+                  Predios
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activeLayer === 'area' ? 'default' : 'outline'}
+                  className="h-8 rounded-lg"
+                  onClick={() => setActiveLayer('area')}
+                >
+                  Áreas
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activeLayer === 'sensor' ? 'default' : 'outline'}
+                  className="h-8 rounded-lg"
+                  onClick={() => setActiveLayer('sensor')}
+                >
+                  Sensores
+                </Button>
+              </div>
+              {selectedPredioId && activeLayer !== 'all' && (
+                <span className="inline-flex items-center text-xs text-gray-500">
+                  Filtro activo: {activeLayer}
+                </span>
+              )}
+              {visibleMapPoints.length === 0 && (
+                <span className="inline-flex items-center text-xs text-gray-500">
+                  Sin ubicaciones para esta pestaña
+                </span>
+              )}
+              {selectedPredioId && (
+                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-gray-400" /> Fuera de selección</span>
+              )}
             </div>
           </Card>
 
