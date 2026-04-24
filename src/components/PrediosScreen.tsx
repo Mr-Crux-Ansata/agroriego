@@ -20,9 +20,18 @@ interface MapPoint {
   key: string;
   label: string;
   type: MapPointType;
+  id_predio: number;
+  id_area?: string;
   lat: number;
   lng: number;
   syntheticPosition: boolean;
+}
+
+interface MapFocusTarget {
+  key: string;
+  lat: number;
+  lng: number;
+  zoom: number;
 }
 
 const markerStyles: Record<MapPointType, { bg: string; text: string; border: string }> = {
@@ -52,20 +61,25 @@ const markerIcons: Record<MapPointType, L.DivIcon> = {
   }),
 };
 
-function FitMapToPoints({ points }: { points: MapPoint[] }) {
+function MapViewportController({ points, focusTarget }: { points: MapPoint[]; focusTarget: MapFocusTarget | null }) {
   const map = useMap();
 
   useEffect(() => {
+    if (focusTarget) {
+      map.setView([focusTarget.lat, focusTarget.lng], focusTarget.zoom, { animate: true });
+      return;
+    }
+
     if (points.length === 0) return;
 
     if (points.length === 1) {
-      map.setView([points[0].lat, points[0].lng], 16);
+      map.setView([points[0].lat, points[0].lng], 16, { animate: true });
       return;
     }
 
     const bounds = L.latLngBounds(points.map((point) => [point.lat, point.lng] as [number, number]));
-    map.fitBounds(bounds.pad(0.25));
-  }, [map, points]);
+    map.fitBounds(bounds.pad(0.25), { animate: true });
+  }, [map, points, focusTarget]);
 
   return null;
 }
@@ -77,6 +91,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [editingPredio, setEditingPredio] = useState<any>(null);
   const [error, setError] = useState('');
+  const [selectedPredioId, setSelectedPredioId] = useState<number | null>(null);
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nombre: '',
     latitud: '',
@@ -179,6 +195,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
       key: `predio-${predio.id_predio}`,
       label: predio.nombre,
       type: 'predio' as const,
+      id_predio: Number(predio.id_predio),
       lat: predio.lat,
       lng: predio.lng,
       syntheticPosition: predio.syntheticPosition,
@@ -192,6 +209,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
           key: `area-${area.id_area}`,
           label: area.nombre,
           type: 'area' as const,
+          id_predio: Number(predio.id_predio),
+          id_area: area.id_area,
           lat: areaPos.lat,
           lng: areaPos.lng,
           syntheticPosition: predio.syntheticPosition,
@@ -200,6 +219,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
           key: `sensor-${area.id_area}`,
           label: `Sensor ${area.nombre}`,
           type: 'sensor' as const,
+          id_predio: Number(predio.id_predio),
+          id_area: area.id_area,
           lat: areaPos.lat + 0.00018,
           lng: areaPos.lng - 0.00016,
           syntheticPosition: predio.syntheticPosition,
@@ -214,7 +235,49 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const longitudes = allMapPoints.map((point) => point.lng);
   const fallbackLat = prediosMapeados[0]?.lat ?? 28.6353;
   const fallbackLng = prediosMapeados[0]?.lng ?? -106.0889;
-    const prediosSinCoordenadas = prediosMapeados.filter((predio) => predio.syntheticPosition).length;
+  const prediosSinCoordenadas = prediosMapeados.filter((predio) => predio.syntheticPosition).length;
+
+  const predioSeleccionado = selectedPredioId
+    ? prediosMapeados.find((predio) => Number(predio.id_predio) === Number(selectedPredioId))
+    : null;
+
+  const areasDelPredioSeleccionado = predioSeleccionado
+    ? getAreasDePredio(predioSeleccionado.id_predio)
+    : [];
+
+  const visibleMapPoints = allMapPoints.filter((point) => {
+    if (selectedAreaId) {
+      return point.id_area === selectedAreaId || (point.type === 'predio' && point.id_predio === Number(selectedPredioId));
+    }
+    if (selectedPredioId) {
+      return point.id_predio === Number(selectedPredioId);
+    }
+    return true;
+  });
+
+  const selectedAreaPoint = selectedAreaId
+    ? visibleMapPoints.find((point) => point.type === 'area' && point.id_area === selectedAreaId)
+    : null;
+
+  const selectedPredioPoint = selectedPredioId
+    ? visibleMapPoints.find((point) => point.type === 'predio' && point.id_predio === Number(selectedPredioId))
+    : null;
+
+  const focusTarget: MapFocusTarget | null = selectedAreaPoint
+    ? {
+        key: `focus-area-${selectedAreaPoint.id_area}`,
+        lat: selectedAreaPoint.lat,
+        lng: selectedAreaPoint.lng,
+        zoom: 17,
+      }
+    : selectedPredioPoint
+      ? {
+          key: `focus-predio-${selectedPredioPoint.id_predio}`,
+          lat: selectedPredioPoint.lat,
+          lng: selectedPredioPoint.lng,
+          zoom: 15,
+        }
+      : null;
 
   const minLat = latitudes.length ? Math.min(...latitudes) : fallbackLat - 0.01;
   const maxLat = latitudes.length ? Math.max(...latitudes) : fallbackLat + 0.01;
@@ -285,9 +348,24 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <FitMapToPoints points={allMapPoints} />
-                    {allMapPoints.map((point) => (
-                      <Marker key={point.key} position={[point.lat, point.lng]} icon={markerIcons[point.type]}>
+                    <MapViewportController points={visibleMapPoints} focusTarget={focusTarget} />
+                    {visibleMapPoints.map((point) => (
+                      <Marker
+                        key={point.key}
+                        position={[point.lat, point.lng]}
+                        icon={markerIcons[point.type]}
+                        eventHandlers={{
+                          click: () => {
+                            if (point.type === 'predio') {
+                              setSelectedPredioId(point.id_predio);
+                              setSelectedAreaId(null);
+                              return;
+                            }
+                            setSelectedPredioId(point.id_predio);
+                            if (point.id_area) setSelectedAreaId(point.id_area);
+                          },
+                        }}
+                      >
                         <Tooltip direction="top" offset={[0, -8]}>
                           {point.label}
                         </Tooltip>
@@ -300,17 +378,86 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                   className="rounded-2xl border border-gray-200 bg-white p-3 md:overflow-auto"
                   style={{ maxHeight: 'clamp(560px, 78vh, 920px)' }}
                 >
-                  <p className="mb-3 text-sm font-medium text-gray-700">Ubicaciones detectadas</p>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-gray-700">Ubicaciones detectadas</p>
+                    {selectedPredioId && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 rounded-lg px-2 text-xs"
+                        onClick={() => {
+                          setSelectedPredioId(null);
+                          setSelectedAreaId(null);
+                        }}
+                      >
+                        Ver todos
+                      </Button>
+                    )}
+                  </div>
                   {prediosMapeados.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-4 text-sm text-gray-500">
                       No hay predios para mostrar.
+                    </div>
+                  ) : selectedPredioId && predioSeleccionado ? (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
+                          <p className="text-sm font-semibold text-gray-800">{predioSeleccionado.nombre}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-600">
+                          {predioSeleccionado.syntheticPosition
+                            ? 'Ubicacion esquematica temporal'
+                            : `${predioSeleccionado.lat.toFixed(6)}, ${predioSeleccionado.lng.toFixed(6)}`}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Areas del predio</p>
+                        {areasDelPredioSeleccionado.length === 0 ? (
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-500">
+                            Este predio no tiene areas registradas.
+                          </div>
+                        ) : (
+                          areasDelPredioSeleccionado.map((area: any) => {
+                            const isSelected = selectedAreaId === area.id_area;
+                            return (
+                              <button
+                                key={`menu-area-${area.id_area}`}
+                                type="button"
+                                onClick={() => setSelectedAreaId(area.id_area)}
+                                className={`w-full rounded-xl border px-3 py-2 text-left transition-colors ${
+                                  isSelected
+                                    ? 'border-emerald-300 bg-emerald-50'
+                                    : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                                  <p className="text-sm font-medium text-gray-800">{area.nombre}</p>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">{area.tipo_cultivo} · {area.id_area}</p>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {prediosMapeados.map((predio) => {
                         const areasPredio = getAreasDePredio(predio.id_predio);
                         return (
-                          <div key={`summary-${predio.id_predio}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                          <button
+                            key={`summary-${predio.id_predio}`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPredioId(Number(predio.id_predio));
+                              setSelectedAreaId(null);
+                            }}
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100"
+                          >
                             <div className="flex items-center gap-2">
                               <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
                               <p className="text-sm font-semibold text-gray-800">{predio.nombre}</p>
@@ -335,7 +482,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                                 <p className="text-xs text-gray-400">+{areasPredio.length - 4} areas mas</p>
                               )}
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
