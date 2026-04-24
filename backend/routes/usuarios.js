@@ -53,12 +53,167 @@ async function ensureUsuarioProfileColumns(pool) {
             SELECT *
             FROM sys.columns
             WHERE object_id = OBJECT_ID('Usuario')
+              AND name = 'rfc'
+        )
+        BEGIN
+            ALTER TABLE Usuario ADD rfc VARCHAR(13) NULL;
+        END
+
+        IF NOT EXISTS (
+            SELECT *
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('Usuario')
+              AND name = 'fecha_nacimiento'
+        )
+        BEGIN
+            ALTER TABLE Usuario ADD fecha_nacimiento DATE NULL;
+        END
+
+        IF NOT EXISTS (
+            SELECT *
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('Usuario')
               AND name = 'foto_perfil_url'
         )
         BEGIN
             ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
         END
     `);
+}
+
+const RFC_REGEX = /^([A-ZÑ&]{3,4})(\d{2})(\d{2})(\d{2})([A-Z0-9]{2})([A-Z0-9])$/;
+const RFC_CHAR_VALUES = {
+    '0': 0,
+    '1': 1,
+    '2': 2,
+    '3': 3,
+    '4': 4,
+    '5': 5,
+    '6': 6,
+    '7': 7,
+    '8': 8,
+    '9': 9,
+    A: 10,
+    B: 11,
+    C: 12,
+    D: 13,
+    E: 14,
+    F: 15,
+    G: 16,
+    H: 17,
+    I: 18,
+    J: 19,
+    K: 20,
+    L: 21,
+    M: 22,
+    N: 23,
+    '&': 24,
+    O: 25,
+    P: 26,
+    Q: 27,
+    R: 28,
+    S: 29,
+    T: 30,
+    U: 31,
+    V: 32,
+    W: 33,
+    X: 34,
+    Y: 35,
+    Z: 36,
+    ' ': 37,
+    Ñ: 38,
+};
+
+function normalizarRFC(value = '') {
+    return value.toUpperCase().trim().replace(/[^A-Z0-9Ñ&]/g, '');
+}
+
+function isValidDateYYMMDD(yy, mm, dd) {
+    const year2 = Number(yy);
+    const month = Number(mm);
+    const day = Number(dd);
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        return false;
+    }
+
+    const candidates = [1900 + year2, 2000 + year2];
+    return candidates.some((fullYear) => {
+        const date = new Date(fullYear, month - 1, day);
+        return (
+            date.getFullYear() === fullYear
+            && date.getMonth() === month - 1
+            && date.getDate() === day
+        );
+    });
+}
+
+function expectedRFCVerifier(baseRFC) {
+    let factor = baseRFC.length + 1;
+    let sum = 0;
+
+    for (const char of baseRFC) {
+        const value = RFC_CHAR_VALUES[char];
+        if (value === undefined) {
+            return null;
+        }
+        sum += value * factor;
+        factor -= 1;
+    }
+
+    const mod = sum % 11;
+    const digit = 11 - mod;
+
+    if (digit === 11) {
+        return '0';
+    }
+    if (digit === 10) {
+        return 'A';
+    }
+    return String(digit);
+}
+
+function validarRFCCompleto(rfcInput = '') {
+    const rfc = normalizarRFC(rfcInput);
+    const match = rfc.match(RFC_REGEX);
+
+    if (!match) {
+        return { ok: false, error: 'RFC inválido (formato).' };
+    }
+
+    const [, prefix, yy, mm, dd, homoclave, verifier] = match;
+
+    if (!isValidDateYYMMDD(yy, mm, dd)) {
+        return { ok: false, error: 'RFC inválido (fecha).' };
+    }
+
+    const baseRFC = `${prefix}${yy}${mm}${dd}${homoclave}`;
+    const expectedVerifier = expectedRFCVerifier(baseRFC);
+
+    if (!expectedVerifier || verifier !== expectedVerifier) {
+        return { ok: false, error: 'RFC inválido (dígito verificador).' };
+    }
+
+    return { ok: true, rfc };
+}
+
+function validarFechaNacimiento(fechaISO = '') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) {
+        return { ok: false, error: 'Fecha de nacimiento inválida (formato).' };
+    }
+
+    const fecha = new Date(`${fechaISO}T00:00:00Z`);
+    if (Number.isNaN(fecha.getTime())) {
+        return { ok: false, error: 'Fecha de nacimiento inválida.' };
+    }
+
+    const hoy = new Date();
+    const hoyUTC = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate()));
+    if (fecha > hoyUTC) {
+        return { ok: false, error: 'La fecha de nacimiento no puede ser futura.' };
+    }
+
+    return { ok: true, fecha: fechaISO };
 }
 
 // Obtener usuarios
@@ -176,15 +331,31 @@ router.post('/perfil/foto', verificarToken, uploadSingleImage, async (req, res) 
 
 
 router.post('/', verificarToken, async (req, res) => {
-    const { email, nombre_completo, rol } = req.body;
+    const { email, nombre_completo, rol, rfc, fecha_nacimiento } = req.body;
 
 
     if (req.user.rol !== 'Administrador Sistema') {
         return res.status(403).json({ error: 'No autorizado' });
     }
 
+    if (!email || !nombre_completo || !rol || !rfc || !fecha_nacimiento) {
+        return res.status(400).json({ error: 'Email, nombre, rol, RFC y fecha de nacimiento son obligatorios' });
+    }
+
+    const rfcValidation = validarRFCCompleto(rfc);
+    if (!rfcValidation.ok) {
+        return res.status(400).json({ error: rfcValidation.error });
+    }
+    const rfcNormalizado = rfcValidation.rfc;
+
+    const fechaValidation = validarFechaNacimiento(fecha_nacimiento);
+    if (!fechaValidation.ok) {
+        return res.status(400).json({ error: fechaValidation.error });
+    }
+
     try {
         const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
 
         const existe = await pool.request()
             .input('email', sql.VarChar, email)
@@ -192,6 +363,14 @@ router.post('/', verificarToken, async (req, res) => {
 
         if (existe.recordset.length > 0) {
             return res.status(400).json({ error: 'El correo ya está registrado' });
+        }
+
+        const existeRfc = await pool.request()
+            .input('rfc', sql.VarChar, rfcNormalizado)
+            .query('SELECT id_usuario FROM Usuario WHERE rfc = @rfc');
+
+        if (existeRfc.recordset.length > 0) {
+            return res.status(400).json({ error: 'El RFC ya está registrado' });
         }
 
         const rolesPermitidos = [
@@ -211,10 +390,12 @@ router.post('/', verificarToken, async (req, res) => {
             .input('pass', sql.VarChar, '') // password vacío temporal
             .input('nombre', sql.VarChar, nombre_completo)
             .input('rol', sql.VarChar, rol)
+            .input('rfc', sql.VarChar, rfcNormalizado)
+            .input('fechaNacimiento', sql.Date, fechaValidation.fecha)
             .input('activo', sql.Bit, 0)
-            .query(`INSERT INTO Usuario (email, password_hash, nombre_completo, rol, activo)
+            .query(`INSERT INTO Usuario (email, password_hash, nombre_completo, rol, rfc, fecha_nacimiento, activo)
                     OUTPUT INSERTED.id_usuario
-                    VALUES (@email, @pass, @nombre, @rol, @activo)`);
+                VALUES (@email, @pass, @nombre, @rol, @rfc, @fechaNacimiento, @activo)`);
 
         const nuevoUsuarioId = result.recordset[0].id_usuario;
 

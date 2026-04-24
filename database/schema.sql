@@ -30,6 +30,8 @@ CREATE TABLE Usuario (
                          email               VARCHAR(100)    NOT NULL UNIQUE,
                          password_hash       VARCHAR(255)    NOT NULL,
                          nombre_completo     VARCHAR(100)    NOT NULL,
+                         rfc                 VARCHAR(13)     NULL,
+                         fecha_nacimiento    DATE            NULL,
                          rol                 VARCHAR(30)     NOT NULL,
                          activo              BIT             NOT NULL DEFAULT 0,
                          foto_perfil_url     VARCHAR(255)    NULL,
@@ -46,6 +48,12 @@ IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND 
 GO
 IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo_expira')
     ALTER TABLE Usuario DROP COLUMN sms_codigo_expira;
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'rfc')
+    ALTER TABLE Usuario ADD rfc VARCHAR(13) NULL;
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'fecha_nacimiento')
+    ALTER TABLE Usuario ADD fecha_nacimiento DATE NULL;
 GO
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'foto_perfil_url')
     ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
