@@ -374,6 +374,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const areasSeleccionadasDetalle = selectedAreaIds
     .map((idArea) => areasDelPredioSeleccionado.find((area: any) => String(area.id_area ?? '').trim() === idArea))
     .filter(Boolean);
+  const mostrarVistaSensores = selectedPredioPanelStep === 'sensores' || activeLayer === 'sensor';
 
   const selectionFilteredPoints = allMapPoints.filter((point) => {
     if (selectedAreaIds.length > 0) {
@@ -577,7 +578,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                         </p>
                       </div>
 
-                      {selectedPredioPanelStep === 'areas' ? (
+                      {!mostrarVistaSensores ? (
                         <>
                           <div className="space-y-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Areas del predio</p>
@@ -655,24 +656,35 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                               size="sm"
                               variant="outline"
                               className="h-7 rounded-lg px-2 text-xs"
-                              onClick={() => setSelectedPredioPanelStep('areas')}
+                              onClick={() => {
+                                setSelectedPredioPanelStep('areas');
+                                if (activeLayer === 'sensor') {
+                                  setActiveLayer('area');
+                                }
+                              }}
                             >
                               Volver a areas
                             </Button>
                           </div>
-                          {areasSeleccionadasDetalle.map((area: any) => (
-                            <div key={`detalle-sensores-${area.id_area}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                              <p className="text-xs font-semibold text-amber-900">{area.nombre} · {area.id_area}</p>
-                              <div className="mt-2 grid grid-cols-1 gap-1">
-                                {areaSensorCatalog.map((sensorName) => (
-                                  <div key={`sensor-detalle-${area.id_area}-${sensorName}`} className="flex items-center gap-2 text-xs text-amber-800">
-                                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                    <span>{sensorName}</span>
-                                  </div>
-                                ))}
-                              </div>
+                          {areasSeleccionadasDetalle.length === 0 ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
+                              Selecciona al menos un area para ver sus sensores.
                             </div>
-                          ))}
+                          ) : (
+                            areasSeleccionadasDetalle.map((area: any) => (
+                              <div key={`detalle-sensores-${area.id_area}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                <p className="text-xs font-semibold text-amber-900">{area.nombre} · {area.id_area}</p>
+                                <div className="mt-2 grid grid-cols-1 gap-1">
+                                  {areaSensorCatalog.map((sensorName) => (
+                                    <div key={`sensor-detalle-${area.id_area}-${sensorName}`} className="flex items-center gap-2 text-xs text-amber-800">
+                                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                      <span>{sensorName}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))
+                          )}
                         </div>
                       )}
                     </div>

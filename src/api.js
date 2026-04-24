@@ -189,6 +189,12 @@ export const api = {
         return res.data;
     },
 
+    importarTelemetriaCSV: (csvContent, areaId) =>
+        request('/reportes/importar-csv', {
+            method: 'POST',
+            body: JSON.stringify({ csvContent, areaId }),
+        }),
+
     // 🚨 ALERTAS
     getAlertas: async () => {
         const res = await request('/alertas');
