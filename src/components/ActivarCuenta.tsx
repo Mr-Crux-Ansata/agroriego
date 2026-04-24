@@ -28,7 +28,6 @@ const ActivarCuenta = () => {
             setError('Las contraseñas no coinciden');
             return;
         }
-
         if (!token) {
             setError('Token de activación no encontrado');
             return;

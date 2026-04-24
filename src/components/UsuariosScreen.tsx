@@ -9,8 +9,7 @@ import { Badge } from './ui/badge';
 import { UserPlus, Shield, Eye, Trash2, AlertCircle, Home } from 'lucide-react';
 import { api } from '../api';
 
-console.log("API COMPLETA:", api);
-console.log("TIPO activarCuenta:", typeof api?.activarCuenta);
+
 
 interface UsuariosScreenProps {
   userRole: 'admin' | 'user';
@@ -21,11 +20,16 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [error, setError] = useState('');
+  const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+
+  const normalizarRFC = (value: string) =>
+    value.toUpperCase().replace(/[^A-Z0-9Ñ&]/g, '');
 
   const [formData, setFormData] = useState({
     nombre_completo: '',
     email: '',
-    password: '',
+    rfc: '',
+    fecha_nacimiento: '',
     rol: 'Operador Campo',
   });
 
@@ -51,21 +55,39 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const rfcNormalizado = normalizarRFC(formData.rfc);
 
-    if (!formData.email || !formData.password || !formData.nombre_completo) {
+    if (!formData.email || !formData.nombre_completo || !rfcNormalizado || !formData.fecha_nacimiento) {
       setError('Todos los campos son obligatorios');
       return;
     }
 
+    const fechaNacimiento = new Date(`${formData.fecha_nacimiento}T00:00:00`);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    if (Number.isNaN(fechaNacimiento.getTime()) || fechaNacimiento > hoy) {
+      setError('Fecha de nacimiento inválida.');
+      return;
+    }
+
+    if (!RFC_REGEX.test(rfcNormalizado)) {
+      setError('RFC inválido. Usa formato de 12 o 13 caracteres (ej: XAXX010101000).');
+      return;
+    }
+
     try {
-      const result = await api.crearUsuario(formData);
+      const result = await api.crearUsuario({
+        ...formData,
+        rfc: rfcNormalizado,
+      });
 
       if (result.ok) {
         setShowDialog(false);
         setFormData({
           nombre_completo: '',
           email: '',
-          password: '',
+          rfc: '',
+          fecha_nacimiento: '',
           rol: 'Operador Campo'
         });
         cargarUsuarios();
@@ -179,11 +201,20 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
         {usuarios.map(usuario => {
           const config = getRoleConfig(usuario.rol);
           const Icon = config.icon;
+          const fotoSrc = usuario.foto_perfil_url
+            ? `http://localhost:3001${usuario.foto_perfil_url}`
+            : null;
 
           return (
             <Card key={usuario.id_usuario} className="p-4 flex justify-between">
               <div className="flex gap-3">
-                <Icon className={config.colorClass} />
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden ${config.bgClass}`}>
+                  {fotoSrc ? (
+                    <img src={fotoSrc} alt={usuario.nombre_completo} className="w-full h-full object-cover" />
+                  ) : (
+                    <Icon className={`w-5 h-5 ${config.colorClass}`} />
+                  )}
+                </div>
                 <div>
                   <h3>{usuario.nombre_completo}</h3>
                   <p>{usuario.email}</p>
@@ -195,7 +226,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                 onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}
                 variant="outline"
                 size="sm"
-                className="rounded-xl"
+                className="!bg-black !text-white rounded-xl hover:!bg-gray-800 dark:!bg-black dark:!text-white dark:hover:!bg-gray-800"
               >
                 <Trash2 />
               </Button>
@@ -211,7 +242,11 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
 
             <form onSubmit={handleCreate} className="space-y-4">
 
-              {error && <div className="text-red-500">{error}</div>}
+              {error && (
+                <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                  {error}
+                </div>
+              )}
 
               <Input
                 placeholder="Nombre"
@@ -227,11 +262,21 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
               />
 
               <Input
-                placeholder="Contraseña"
-                type="password"
-                value={formData.password}
-                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                placeholder="RFC"
+                value={formData.rfc}
+                maxLength={13}
+                onChange={e => setFormData({ ...formData, rfc: normalizarRFC(e.target.value) })}
               />
+
+              <div className="space-y-2">
+                <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+                <Input
+                  id="fecha_nacimiento"
+                  type="date"
+                  value={formData.fecha_nacimiento}
+                  onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                />
+              </div>
 
               <Select
                 value={formData.rol}

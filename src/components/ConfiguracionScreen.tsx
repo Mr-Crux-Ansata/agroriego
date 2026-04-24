@@ -15,13 +15,10 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
   const [config, setConfig] = useState({
     frecuenciaActualizacion: '10',
     notificacionesEmail: true,
-    notificacionesSMS: false,
     emailNotificaciones: 'admin@agroriego.com',
-    telefonoSMS: '+52 555 123 4567',
     nombreCliente: 'AgroRiego México S.A. de C.V.',
     rfc: 'ARM123456ABC',
     emailContacto: 'contacto@agroriego.com',
-    telefonoContacto: '+52 555 987 6543',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -128,32 +125,6 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
                 </div>
               )}
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <p className="font-medium">Notificaciones por SMS</p>
-                  <p className="text-sm text-gray-600">
-                    Recibir alertas por mensaje de texto
-                  </p>
-                </div>
-                <Switch
-                  checked={config.notificacionesSMS}
-                  onCheckedChange={(checked) => setConfig({ ...config, notificacionesSMS: checked })}
-                />
-              </div>
-
-              {config.notificacionesSMS && (
-                <div className="space-y-2 ml-4">
-                  <Label htmlFor="telefonoSMS">Teléfono para SMS</Label>
-                  <Input
-                    id="telefonoSMS"
-                    type="tel"
-                    value={config.telefonoSMS}
-                    onChange={(e) => setConfig({ ...config, telefonoSMS: e.target.value })}
-                    className="rounded-xl"
-                  />
-                </div>
-              )}
-
               <div className="p-4 bg-yellow-50 rounded-xl">
                 <p className="text-sm text-yellow-900">
                   <span className="font-medium">Tipos de Alertas:</span> Falta de agua, exceso de agua, 
@@ -207,17 +178,6 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
                 />
               </div>
 
-              <div className="space-y-2 col-span-1 md:col-span-2">
-                <Label htmlFor="telefonoContacto">Teléfono de Contacto</Label>
-                <Input
-                  id="telefonoContacto"
-                  type="tel"
-                  value={config.telefonoContacto}
-                  onChange={(e) => setConfig({ ...config, telefonoContacto: e.target.value })}
-                  className="rounded-xl"
-                  required
-                />
-              </div>
             </div>
           </Card>
 

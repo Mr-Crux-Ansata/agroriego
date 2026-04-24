@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 const { getPool } = require('./db');
 
@@ -19,6 +20,7 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.text({ type: 'text/*' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // TEST
 app.get('/test', (req, res) => {
@@ -35,6 +37,7 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/predios', require('./routes/predios'));
 app.use('/api/areas', require('./routes/areas'));
 app.use('/api/alertas', require('./routes/alertas'));
+app.use('/api/reportes', require('./routes/reportes'));
 
 // ERROR DE PARSEO JSON / BODY
 app.use((err, req, res, next) => {

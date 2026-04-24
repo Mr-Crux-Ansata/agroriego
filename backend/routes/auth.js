@@ -1,10 +1,25 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPool, sql } = require('../db');
+const { verificarToken } = require('../middleware/auth');
 require('dotenv').config();
 
 const router = express.Router();
+
+async function ensureUsuarioOptionalColumns(pool) {
+    await pool.request().query(`
+        IF NOT EXISTS (
+            SELECT *
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('Usuario')
+              AND name = 'foto_perfil_url'
+        )
+        BEGIN
+            ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
+        END
+    `);
+}
 
 router.get('/test', (req, res) => {
     res.send('AUTH TEST OK');
@@ -58,6 +73,8 @@ router.post('/activar', async (req, res) => {
         console.log('TOKEN DECODED:', decoded);
 
         const pool = await getPool();
+        await ensureUsuarioOptionalColumns(pool);
+
         const hash = await bcrypt.hash(password, 10);
 
         const result = await pool.request()
@@ -129,6 +146,28 @@ router.post('/login', async (req, res) => {
             },
         });
 
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/me', verificarToken, async (req, res) => {
+    try {
+        const pool = await getPool();
+        await ensureUsuarioOptionalColumns(pool);
+
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .query('SELECT id_usuario, email, nombre_completo, rol, activo, foto_perfil_url FROM Usuario WHERE id_usuario = @id');
+
+        const user = result.recordset[0];
+
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json({ user });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });

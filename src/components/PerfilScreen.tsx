@@ -1,24 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { UserCircle, Save, Shield, Eye, Mail, Phone, MapPin } from 'lucide-react';
+import { UserCircle, Save, Shield, Eye, Mail, MapPin } from 'lucide-react';
+import { api } from '../api';
 
 interface PerfilScreenProps {
   userRole: 'admin' | 'user';
+  sessionUser: {
+    id_usuario: number;
+    email: string;
+    nombre_completo: string;
+    rol: string;
+  } | null;
 }
 
-export function PerfilScreen({ userRole }: PerfilScreenProps) {
+export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    nombre: 'Juan Pérez',
-    email: 'juan.perez@agroriego.com',
-    telefono: '+52 555 123 4567',
-    cargo: 'Gerente de Operaciones',
-    ubicacion: 'Ciudad de México, México',
+    nombre: sessionUser?.nombre_completo || 'Usuario',
+    email: sessionUser?.email || '',
+    cargo: sessionUser?.rol || '',
+    ubicacion: '',
   });
+  const [fotoPerfilUrl, setFotoPerfilUrl] = useState('');
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
 
   const [passwordData, setPasswordData] = useState({
     actual: '',
@@ -26,19 +34,108 @@ export function PerfilScreen({ userRole }: PerfilScreenProps) {
     confirmar: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!sessionUser) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      nombre: sessionUser.nombre_completo,
+      email: sessionUser.email,
+      cargo: sessionUser.rol,
+    }));
+  }, [sessionUser]);
+
+  useEffect(() => {
+    const cargarPerfil = async () => {
+      const res = await api.getMiPerfil();
+      if (!res.ok || !res.data?.perfil) return;
+
+      const perfil = res.data.perfil;
+      setFormData((prev) => ({
+        ...prev,
+        nombre: perfil.nombre_completo || prev.nombre,
+        email: perfil.email || prev.email,
+        cargo: perfil.rol || prev.cargo,
+      }));
+      setFotoPerfilUrl(perfil.foto_perfil_url || '');
+    };
+
+    cargarPerfil();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const res = await api.actualizarMiPerfil({
+      nombre_completo: formData.nombre,
+    });
+
+    if (!res.ok) {
+      alert(res.error || 'No se pudo actualizar el perfil');
+      return;
+    }
+
+    if (res.data?.perfil) {
+      const perfil = res.data.perfil;
+      setFormData((prev) => ({
+        ...prev,
+        nombre: perfil.nombre_completo || prev.nombre,
+      }));
+      setFotoPerfilUrl(perfil.foto_perfil_url || '');
+    }
+
     alert('Perfil actualizado exitosamente');
     setIsEditing(false);
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordData.nueva !== passwordData.confirmar) {
-      alert('Las contraseñas no coinciden');
+  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoFoto(true);
+    const res = await api.subirFotoPerfil(file);
+    setSubiendoFoto(false);
+
+    if (!res.ok) {
+      alert(res.error || 'No se pudo subir la foto');
       return;
     }
-    alert('Contraseña actualizada exitosamente');
+
+    if (res.data?.foto_perfil_url) {
+      setFotoPerfilUrl(res.data.foto_perfil_url);
+    }
+  };
+
+  const fotoSrc = fotoPerfilUrl ? `http://localhost:3001${fotoPerfilUrl}` : '';
+
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess(false);
+
+    if (passwordData.nueva !== passwordData.confirmar) {
+      setPasswordError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (passwordData.nueva.length < 6) {
+      setPasswordError('La nueva contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setSavingPassword(true);
+    const res = await api.cambiarPassword(passwordData.actual, passwordData.nueva);
+    setSavingPassword(false);
+
+    if (!res.ok) {
+      setPasswordError(res.error || 'No se pudo cambiar la contraseña');
+      return;
+    }
+
+    setPasswordSuccess(true);
     setPasswordData({ actual: '', nueva: '', confirmar: '' });
   };
 
@@ -64,8 +161,12 @@ export function PerfilScreen({ userRole }: PerfilScreenProps) {
               <Card className="p-4 sm:p-6 rounded-2xl shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                   <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-green-500 rounded-2xl flex items-center justify-center shrink-0">
-                      <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-green-500 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden">
+                      {fotoSrc ? (
+                        <img src={fotoSrc} alt="Foto de perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <h2 className="text-lg sm:text-2xl font-medium truncate">{formData.nombre}</h2>
@@ -93,6 +194,19 @@ export function PerfilScreen({ userRole }: PerfilScreenProps) {
                   </Button>
                 </div>
 
+                <div className="mb-5">
+                  <Label htmlFor="fotoPerfil">Foto de Perfil</Label>
+                  <Input
+                    id="fotoPerfil"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFotoChange}
+                    disabled={subiendoFoto}
+                    className="mt-2 rounded-xl"
+                  />
+                  {subiendoFoto && <p className="text-xs text-gray-500 mt-2">Subiendo imagen...</p>}
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -118,21 +232,6 @@ export function PerfilScreen({ userRole }: PerfilScreenProps) {
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="pl-10 rounded-xl"
-                            disabled={!isEditing}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="telefono">Teléfono</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <Input
-                            id="telefono"
-                            type="tel"
-                            value={formData.telefono}
-                            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                             className="pl-10 rounded-xl"
                             disabled={!isEditing}
                         />
@@ -217,11 +316,19 @@ export function PerfilScreen({ userRole }: PerfilScreenProps) {
                     />
                   </div>
 
+                  {passwordError && (
+                    <p className="text-red-500 text-sm">{passwordError}</p>
+                  )}
+                  {passwordSuccess && (
+                    <p className="text-green-600 text-sm">Contraseña actualizada correctamente</p>
+                  )}
+
                   <Button
                       type="submit"
+                      disabled={savingPassword}
                       className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 rounded-xl"
                   >
-                    Actualizar Contraseña
+                    {savingPassword ? 'Guardando...' : 'Actualizar Contraseña'}
                   </Button>
                 </form>
               </Card>

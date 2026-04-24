@@ -26,14 +26,41 @@ GO
 -- ============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Usuario' AND xtype='U')
 CREATE TABLE Usuario (
-                         id_usuario      INT IDENTITY(1,1) PRIMARY KEY,
-                         email           VARCHAR(100)    NOT NULL UNIQUE,
-                         password_hash   VARCHAR(255)    NOT NULL,
-                         nombre_completo VARCHAR(100)    NOT NULL,
-                         rol             VARCHAR(30)     NOT NULL,
-                         activo          BIT             NOT NULL DEFAULT 0,
+                         id_usuario          INT IDENTITY(1,1) PRIMARY KEY,
+                         email               VARCHAR(100)    NOT NULL UNIQUE,
+                         password_hash       VARCHAR(255)    NOT NULL,
+                         nombre_completo     VARCHAR(100)    NOT NULL,
+                         rfc                 VARCHAR(13)     NULL,
+                         fecha_nacimiento    DATE            NULL,
+                         rol                 VARCHAR(30)     NOT NULL,
+                         activo              BIT             NOT NULL DEFAULT 0,
+                         foto_perfil_url     VARCHAR(255)    NULL,
                          CONSTRAINT chk_rol CHECK (rol IN ('Administrador Sistema', 'Administrador Predio', 'Operador Campo'))
 );
+GO
+
+-- Migraciones para bases de datos existentes
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'telefono')
+    ALTER TABLE Usuario DROP COLUMN telefono;
+GO
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo')
+    ALTER TABLE Usuario DROP COLUMN sms_codigo;
+GO
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'sms_codigo_expira')
+    ALTER TABLE Usuario DROP COLUMN sms_codigo_expira;
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'rfc')
+    ALTER TABLE Usuario ADD rfc VARCHAR(13) NULL;
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'fecha_nacimiento')
+    ALTER TABLE Usuario ADD fecha_nacimiento DATE NULL;
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'foto_perfil_url')
+    ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
+GO
+
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PerfilCliente') AND name = 'telefono_contacto')
+    ALTER TABLE PerfilCliente DROP COLUMN telefono_contacto;
 GO
 
 -- ============================================================
@@ -46,7 +73,6 @@ CREATE TABLE PerfilCliente (
                                nombre_cliente_empresa  VARCHAR(150)    NOT NULL,
                                rfc                     VARCHAR(13)     NULL UNIQUE,
                                email_contacto          VARCHAR(100)    NULL,
-                               telefono_contacto       VARCHAR(20)     NULL,
                                CONSTRAINT fk_perfil_usuario FOREIGN KEY (id_usuario)
                                    REFERENCES Usuario(id_usuario) ON DELETE CASCADE
 );
@@ -209,8 +235,20 @@ GO
 -- Predios
 IF NOT EXISTS (SELECT * FROM Predio WHERE nombre = 'Predio Norte')
 INSERT INTO Predio (id_usuario, nombre, latitud, longitud) VALUES
-    (2, 'Predio Norte', 28.63530000, -106.08890000),
-    (2, 'Predio Sur',   28.62000000, -106.07500000);
+    (2, 'Predio Norte', 28.68842920, -106.08123870),
+    (2, 'Predio Sur',   28.68112920, -106.07223870);
+GO
+
+UPDATE Predio
+SET latitud = 28.68842920,
+    longitud = -106.08123870
+WHERE nombre = 'Predio Norte';
+GO
+
+UPDATE Predio
+SET latitud = 28.68112920,
+    longitud = -106.07223870
+WHERE nombre = 'Predio Sur';
 GO
 
 -- Áreas de riego

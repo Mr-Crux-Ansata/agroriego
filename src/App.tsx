@@ -16,21 +16,62 @@ import { ReportesScreen } from './components/ReportesScreen';
 import { ConfiguracionScreen } from './components/ConfiguracionScreen';
 import { UsuariosScreen } from './components/UsuariosScreen';
 import { PerfilScreen } from './components/PerfilScreen';
+import { api } from './api';
+
+interface SessionUser {
+  id_usuario: number;
+  email: string;
+  nombre_completo: string;
+  rol: string;
+}
 
 export default function App() {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedData, setSelectedData] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const parseSelectedPredioId = (value: any) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
 
   // Detectar si hay un token de activación en la URL
   const queryParams = new URLSearchParams(location.search);
   const activationToken = queryParams.get('token');
   const isActivating = activationToken !== null;
 
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const user = await api.getCurrentUser();
+
+      if (!user) {
+        api.logout();
+        setSessionUser(null);
+        setIsLoggedIn(false);
+        return;
+      }
+
+      setSessionUser(user);
+      setUserRole(
+        user.rol === 'Administrador Sistema' || user.rol === 'Administrador Predio'
+          ? 'admin'
+          : 'user'
+      );
+      setIsLoggedIn(true);
+    };
+
+    restoreSession();
+  }, []);
+
   const handleLogin = (user: any) => {
+    setSessionUser(user);
     setUserRole(
         user.rol === 'Administrador Sistema' || user.rol === 'Administrador Predio'
             ? 'admin'
@@ -41,6 +82,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    api.logout();
+    setSessionUser(null);
     setIsLoggedIn(false);
     setCurrentView('dashboard');
     setSelectedData(null);
@@ -68,7 +111,13 @@ export default function App() {
       case 'predios':
         return <PrediosScreen userRole={userRole} onNavigate={handleNavigate} />;
       case 'areas':
-        return <AreasScreen userRole={userRole} onNavigate={handleNavigate} />;
+        return (
+          <AreasScreen
+            userRole={userRole}
+            onNavigate={handleNavigate}
+            selectedPredioId={parseSelectedPredioId(selectedData)}
+          />
+        );
       case 'area-detail':
         return <AreaDetailScreen area={selectedData} onNavigate={handleNavigate} />;
       case 'area-config':
@@ -84,7 +133,7 @@ export default function App() {
       case 'usuarios':
         return <UsuariosScreen userRole={userRole} />;
       case 'perfil':
-        return <PerfilScreen userRole={userRole} />;
+        return <PerfilScreen userRole={userRole} sessionUser={sessionUser} />;
       default:
         return <Dashboard data={selectedData} onNavigate={handleNavigate} />;
     }

@@ -15,6 +15,17 @@ function getToken() {
     return localStorage.getItem('token');
 }
 
+function getStoredUser() {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
 // ---------------------
 // HEADERS
 // ---------------------
@@ -72,6 +83,40 @@ async function request(url, options = {}, auth = true) {
     }
 }
 
+async function requestFormData(url, formData, auth = true) {
+    try {
+        const headers = {};
+        if (auth) {
+            const token = getToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+        }
+
+        const res = await fetch(`${BASE}${url}`, {
+            method: 'POST',
+            headers,
+            body: formData,
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return {
+                ok: false,
+                error: data.error || 'Error en servidor',
+            };
+        }
+
+        return { ok: true, data };
+    } catch (err) {
+        console.log('❌ FETCH ERROR REAL:', err);
+        return {
+            ok: false,
+            error: 'Error de conexión',
+        };
+    }
+}
+
 // ---------------------
 // API
 // ---------------------
@@ -107,13 +152,30 @@ export const api = {
 
         if (res.ok && res.data?.token) {
             localStorage.setItem('token', res.data.token);
+            if (res.data.user) {
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+            }
         }
 
         return res;
     },
 
+    getCurrentUser: async () => {
+        const res = await request('/auth/me');
+
+        if (res.ok && res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            return res.data.user;
+        }
+
+        return getStoredUser();
+    },
+
+    getStoredUser,
+
     logout: () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
     },
 
     getPredios: async () => {
@@ -154,6 +216,12 @@ export const api = {
         return res.data;
     },
 
+    importarTelemetriaCSV: (csvContent, areaId) =>
+        request('/reportes/importar-csv', {
+            method: 'POST',
+            body: JSON.stringify({ csvContent, areaId }),
+        }),
+
     // 🚨 ALERTAS
     getAlertas: async () => {
         const res = await request('/alertas');
@@ -181,5 +249,25 @@ export const api = {
         request(`/usuarios/${id}`, {
             method: 'DELETE',
         }),
+
+    getMiPerfil: () => request('/usuarios/perfil'),
+
+    cambiarPassword: (actual, nueva) =>
+        request('/usuarios/perfil/password', {
+            method: 'PUT',
+            body: JSON.stringify({ actual, nueva }),
+        }),
+
+    actualizarMiPerfil: (data) =>
+        request('/usuarios/perfil', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    subirFotoPerfil: (file) => {
+        const formData = new FormData();
+        formData.append('imagen', file);
+        return requestFormData('/usuarios/perfil/foto', formData);
+    },
 
 };

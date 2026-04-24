@@ -1,33 +1,361 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db');
 const { verificarToken } = require('../middleware/auth');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { enviarCorreo } = require('../utils/email');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
+const uploadDir = path.join(__dirname, '..', 'uploads', 'perfiles');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname || '').toLowerCase();
+        const safeExt = ext || '.jpg';
+        cb(null, `perfil_${req.user.id_usuario}_${Date.now()}${safeExt}`);
+    },
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+            return cb(new Error('Solo se permiten imágenes'));
+        }
+        cb(null, true);
+    },
+});
+
+const uploadSingleImage = (req, res, next) => {
+    upload.single('imagen')(req, res, (err) => {
+        if (!err) return next();
+
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'La imagen supera el tamaño máximo de 2MB' });
+            }
+            return res.status(400).json({ error: `Error de carga: ${err.message}` });
+        }
+
+        return res.status(400).json({ error: err.message || 'Archivo inválido' });
+    });
+};
+
+async function ensureUsuarioProfileColumns(pool) {
+    await pool.request().query(`
+        IF NOT EXISTS (
+            SELECT *
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('Usuario')
+              AND name = 'rfc'
+        )
+        BEGIN
+            ALTER TABLE Usuario ADD rfc VARCHAR(13) NULL;
+        END
+
+        IF NOT EXISTS (
+            SELECT *
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('Usuario')
+              AND name = 'fecha_nacimiento'
+        )
+        BEGIN
+            ALTER TABLE Usuario ADD fecha_nacimiento DATE NULL;
+        END
+
+        IF NOT EXISTS (
+            SELECT *
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('Usuario')
+              AND name = 'foto_perfil_url'
+        )
+        BEGIN
+            ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
+        END
+    `);
+}
+
+const RFC_REGEX = /^([A-ZÑ&]{3,4})(\d{2})(\d{2})(\d{2})([A-Z0-9]{2})([A-Z0-9])$/;
+const RFC_CHAR_VALUES = {
+    '0': 0,
+    '1': 1,
+    '2': 2,
+    '3': 3,
+    '4': 4,
+    '5': 5,
+    '6': 6,
+    '7': 7,
+    '8': 8,
+    '9': 9,
+    A: 10,
+    B: 11,
+    C: 12,
+    D: 13,
+    E: 14,
+    F: 15,
+    G: 16,
+    H: 17,
+    I: 18,
+    J: 19,
+    K: 20,
+    L: 21,
+    M: 22,
+    N: 23,
+    '&': 24,
+    O: 25,
+    P: 26,
+    Q: 27,
+    R: 28,
+    S: 29,
+    T: 30,
+    U: 31,
+    V: 32,
+    W: 33,
+    X: 34,
+    Y: 35,
+    Z: 36,
+    ' ': 37,
+    Ñ: 38,
+};
+
+function normalizarRFC(value = '') {
+    return value.toUpperCase().trim().replace(/[^A-Z0-9Ñ&]/g, '');
+}
+
+function isValidDateYYMMDD(yy, mm, dd) {
+    const year2 = Number(yy);
+    const month = Number(mm);
+    const day = Number(dd);
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        return false;
+    }
+
+    const candidates = [1900 + year2, 2000 + year2];
+    return candidates.some((fullYear) => {
+        const date = new Date(fullYear, month - 1, day);
+        return (
+            date.getFullYear() === fullYear
+            && date.getMonth() === month - 1
+            && date.getDate() === day
+        );
+    });
+}
+
+function expectedRFCVerifier(baseRFC) {
+    let factor = baseRFC.length + 1;
+    let sum = 0;
+
+    for (const char of baseRFC) {
+        const value = RFC_CHAR_VALUES[char];
+        if (value === undefined) {
+            return null;
+        }
+        sum += value * factor;
+        factor -= 1;
+    }
+
+    const mod = sum % 11;
+    const digit = 11 - mod;
+
+    if (digit === 11) {
+        return '0';
+    }
+    if (digit === 10) {
+        return 'A';
+    }
+    return String(digit);
+}
+
+function validarRFCCompleto(rfcInput = '') {
+    const rfc = normalizarRFC(rfcInput);
+    const match = rfc.match(RFC_REGEX);
+
+    if (!match) {
+        return { ok: false, error: 'RFC inválido (formato).' };
+    }
+
+    const [, prefix, yy, mm, dd, homoclave, verifier] = match;
+
+    if (!isValidDateYYMMDD(yy, mm, dd)) {
+        return { ok: false, error: 'RFC inválido (fecha).' };
+    }
+
+    const baseRFC = `${prefix}${yy}${mm}${dd}${homoclave}`;
+    const expectedVerifier = expectedRFCVerifier(baseRFC);
+
+    if (!expectedVerifier || verifier !== expectedVerifier) {
+        return { ok: false, error: 'RFC inválido (dígito verificador).' };
+    }
+
+    return { ok: true, rfc };
+}
+
+function validarFechaNacimiento(fechaISO = '') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) {
+        return { ok: false, error: 'Fecha de nacimiento inválida (formato).' };
+    }
+
+    const fecha = new Date(`${fechaISO}T00:00:00Z`);
+    if (Number.isNaN(fecha.getTime())) {
+        return { ok: false, error: 'Fecha de nacimiento inválida.' };
+    }
+
+    const hoy = new Date();
+    const hoyUTC = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate()));
+    if (fecha > hoyUTC) {
+        return { ok: false, error: 'La fecha de nacimiento no puede ser futura.' };
+    }
+
+    return { ok: true, fecha: fechaISO };
+}
 
 // Obtener usuarios
 router.get('/', verificarToken, async (req, res) => {
     try {
         const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
         const result = await pool.request()
-            .query('SELECT id_usuario, email, nombre_completo, rol, activo FROM Usuario');
+            .query('SELECT id_usuario, email, nombre_completo, rol, activo, foto_perfil_url FROM Usuario');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+router.get('/perfil', verificarToken, async (req, res) => {
+    try {
+        const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .query(`
+                SELECT id_usuario, email, nombre_completo, rol, foto_perfil_url
+                FROM Usuario
+                WHERE id_usuario = @id
+            `);
+
+        const perfil = result.recordset[0];
+        if (!perfil) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json({ perfil });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/perfil', verificarToken, async (req, res) => {
+    const { nombre_completo } = req.body;
+
+    try {
+        const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .input('nombre', sql.VarChar, nombre_completo || null)
+            .query(`
+                UPDATE Usuario
+                SET nombre_completo = COALESCE(@nombre, nombre_completo)
+                WHERE id_usuario = @id;
+
+                SELECT id_usuario, email, nombre_completo, rol, foto_perfil_url
+                FROM Usuario
+                WHERE id_usuario = @id;
+            `);
+
+        res.json({ perfil: result.recordset[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/perfil/foto', verificarToken, uploadSingleImage, async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se recibió ninguna imagen' });
+        }
+
+        const fotoUrl = `/uploads/perfiles/${req.file.filename}`;
+        const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
+
+        const currentPhotoResult = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .query(`
+                SELECT foto_perfil_url
+                FROM Usuario
+                WHERE id_usuario = @id
+            `);
+
+        const fotoAnteriorUrl = currentPhotoResult.recordset[0]?.foto_perfil_url || null;
+
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .input('foto', sql.VarChar, fotoUrl)
+            .query(`
+                UPDATE Usuario
+                SET foto_perfil_url = @foto
+                WHERE id_usuario = @id;
+
+                SELECT id_usuario, email, nombre_completo, rol, foto_perfil_url
+                FROM Usuario
+                WHERE id_usuario = @id;
+            `);
+
+        if (fotoAnteriorUrl && fotoAnteriorUrl !== fotoUrl) {
+            const relativePath = fotoAnteriorUrl.replace(/^\/+/, '').replace(/\//g, path.sep);
+            const absolutePath = path.join(__dirname, '..', relativePath);
+
+            if (absolutePath.startsWith(uploadDir) && fs.existsSync(absolutePath)) {
+                fs.unlinkSync(absolutePath);
+            }
+        }
+
+        res.json({ foto_perfil_url: fotoUrl, perfil: result.recordset[0] });
+    } catch (err) {
+        console.error(err);
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: err.message || 'Error al subir imagen' });
+    }
+});
+
 
 router.post('/', verificarToken, async (req, res) => {
-    const { email, nombre_completo, rol } = req.body;
+    const { email, nombre_completo, rol, rfc, fecha_nacimiento } = req.body;
 
 
     if (req.user.rol !== 'Administrador Sistema') {
         return res.status(403).json({ error: 'No autorizado' });
     }
 
+    if (!email || !nombre_completo || !rol || !rfc || !fecha_nacimiento) {
+        return res.status(400).json({ error: 'Email, nombre, rol, RFC y fecha de nacimiento son obligatorios' });
+    }
+
+    const rfcValidation = validarRFCCompleto(rfc);
+    if (!rfcValidation.ok) {
+        return res.status(400).json({ error: rfcValidation.error });
+    }
+    const rfcNormalizado = rfcValidation.rfc;
+
+    const fechaValidation = validarFechaNacimiento(fecha_nacimiento);
+    if (!fechaValidation.ok) {
+        return res.status(400).json({ error: fechaValidation.error });
+    }
+
     try {
         const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
 
         const existe = await pool.request()
             .input('email', sql.VarChar, email)
@@ -35,6 +363,14 @@ router.post('/', verificarToken, async (req, res) => {
 
         if (existe.recordset.length > 0) {
             return res.status(400).json({ error: 'El correo ya está registrado' });
+        }
+
+        const existeRfc = await pool.request()
+            .input('rfc', sql.VarChar, rfcNormalizado)
+            .query('SELECT id_usuario FROM Usuario WHERE rfc = @rfc');
+
+        if (existeRfc.recordset.length > 0) {
+            return res.status(400).json({ error: 'El RFC ya está registrado' });
         }
 
         const rolesPermitidos = [
@@ -54,10 +390,12 @@ router.post('/', verificarToken, async (req, res) => {
             .input('pass', sql.VarChar, '') // password vacío temporal
             .input('nombre', sql.VarChar, nombre_completo)
             .input('rol', sql.VarChar, rol)
+            .input('rfc', sql.VarChar, rfcNormalizado)
+            .input('fechaNacimiento', sql.Date, fechaValidation.fecha)
             .input('activo', sql.Bit, 0)
-            .query(`INSERT INTO Usuario (email, password_hash, nombre_completo, rol, activo)
+            .query(`INSERT INTO Usuario (email, password_hash, nombre_completo, rol, rfc, fecha_nacimiento, activo)
                     OUTPUT INSERTED.id_usuario
-                    VALUES (@email, @pass, @nombre, @rol, @activo)`);
+                VALUES (@email, @pass, @nombre, @rol, @rfc, @fechaNacimiento, @activo)`);
 
         const nuevoUsuarioId = result.recordset[0].id_usuario;
 
@@ -81,6 +419,47 @@ router.post('/', verificarToken, async (req, res) => {
 
         res.json({ ok: true });
 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/perfil/password', verificarToken, async (req, res) => {
+    const { actual, nueva } = req.body;
+
+    if (!actual || !nueva) {
+        return res.status(400).json({ error: 'Debes enviar la contraseña actual y la nueva' });
+    }
+
+    if (nueva.length < 6) {
+        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    try {
+        const pool = await getPool();
+
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .query('SELECT password_hash FROM Usuario WHERE id_usuario = @id');
+
+        const usuario = result.recordset[0];
+        if (!usuario) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const bcrypt = require('bcryptjs');
+        const valida = await bcrypt.compare(actual, usuario.password_hash);
+        if (!valida) {
+            return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+        }
+
+        const nuevoHash = await bcrypt.hash(nueva, 10);
+        await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .input('hash', sql.VarChar, nuevoHash)
+            .query('UPDATE Usuario SET password_hash = @hash WHERE id_usuario = @id');
+
+        res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
