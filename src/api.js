@@ -189,6 +189,11 @@ export const api = {
         return res.data;
     },
 
+    getDashboardResumen: async () => {
+        const res = await request('/dashboard/resumen');
+        return res.data;
+    },
+
     importarTelemetriaCSV: (csvContent, areaId) =>
         request('/reportes/importar-csv', {
             method: 'POST',

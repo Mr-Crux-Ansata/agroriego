@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { UserCircle, Save, Shield, Eye, Mail, MapPin } from 'lucide-react';
+import { UserCircle, Save, Shield, Eye, Mail } from 'lucide-react';
 import { api } from '../api';
 
 interface PerfilScreenProps {
@@ -23,7 +23,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
     nombre: sessionUser?.nombre_completo || 'Usuario',
     email: sessionUser?.email || '',
     cargo: sessionUser?.rol || '',
-    ubicacion: '',
   });
   const [fotoPerfilUrl, setFotoPerfilUrl] = useState('');
   const [subiendoFoto, setSubiendoFoto] = useState(false);
@@ -249,19 +248,6 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="ubicacion">Ubicación</Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <Input
-                            id="ubicacion"
-                            value={formData.ubicacion}
-                            onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                            className="pl-10 rounded-xl"
-                            disabled={!isEditing}
-                        />
-                      </div>
-                    </div>
                   </div>
 
                   {isEditing && (

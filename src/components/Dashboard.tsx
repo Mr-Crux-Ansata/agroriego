@@ -11,21 +11,6 @@ interface DashboardProps {
   onNavigate: (view: string, data?: any) => void;
 }
 
-const consumptionData = [
-  { time: '00:00', consumo: 0.8 },
-  { time: '02:00', consumo: 0.6 },
-  { time: '04:00', consumo: 0.5 },
-  { time: '06:00', consumo: 1.2 },
-  { time: '08:00', consumo: 1.8 },
-  { time: '10:00', consumo: 2.1 },
-  { time: '12:00', consumo: 2.4 },
-  { time: '14:00', consumo: 2.2 },
-  { time: '16:00', consumo: 1.9 },
-  { time: '18:00', consumo: 1.5 },
-  { time: '20:00', consumo: 1.1 },
-  { time: '22:00', consumo: 0.9 },
-];
-
 function getStatusDot(humedad: number, cap: number, mar: number) {
   if (humedad < mar) return '#fb2c36';
   if (humedad > cap) return '#2b7fff';
@@ -44,21 +29,34 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [predios, setPredios] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
   const [alertas, setAlertas] = useState<any[]>([]);
+  const [dashboardResumen, setDashboardResumen] = useState({
+    temperatura_actual: 0,
+    consumo_total_hoy: 0,
+    consumo_por_hora: [] as Array<{ time: string; consumo: number }>,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         setLoading(true);
-        const [prediosData, areasData, alertasData] = await Promise.all([
+        const [prediosRes, areasRes, alertasRes, resumenRes] = await Promise.allSettled([
           api.getPredios(),
           api.getAreas(),
-          api.getAlertas()
+          api.getAlertas(),
+          api.getDashboardResumen(),
         ]);
+
+        const prediosData = prediosRes.status === 'fulfilled' ? prediosRes.value : [];
+        const areasData = areasRes.status === 'fulfilled' ? areasRes.value : [];
+        const alertasData = alertasRes.status === 'fulfilled' ? alertasRes.value : [];
+        const resumenData = resumenRes.status === 'fulfilled' ? resumenRes.value : null;
+
+        const areasBase = Array.isArray(areasData) ? areasData : [];
 
         // Para cada área, obtener la última lectura de telemetría
         const areasConTelemetria = await Promise.all(
-          areasData.map(async (area: any) => {
+          areasBase.map(async (area: any) => {
             try {
               const telemetria = await api.getTelemetria(area.id_area);
               const ultimaLectura = telemetria && telemetria.length > 0 ? telemetria[0] : null;
@@ -76,11 +74,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         setPredios(Array.isArray(prediosData) ? prediosData : []);
         setAreas(areasConTelemetria);
         setAlertas(Array.isArray(alertasData) ? alertasData : []);
+        setDashboardResumen({
+          temperatura_actual: Number(resumenData?.temperatura_actual || 0),
+          consumo_total_hoy: Number(resumenData?.consumo_total_hoy || 0),
+          consumo_por_hora: Array.isArray(resumenData?.consumo_por_hora) ? resumenData.consumo_por_hora : [],
+        });
       } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
         setPredios([]);
         setAreas([]);
         setAlertas([]);
+        setDashboardResumen({
+          temperatura_actual: 0,
+          consumo_total_hoy: 0,
+          consumo_por_hora: [],
+        });
       } finally {
         setLoading(false);
       }
@@ -104,14 +112,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
     {
       label: 'Temperatura Actual',
-      value: '27°C',
+      value: `${dashboardResumen.temperatura_actual.toFixed(1)}°C`,
       icon: ThermometerSun,
       bg: '#ffedd4',
       iconColor: '#f97316',
     },
     {
       label: 'Consumo Total Hoy',
-      value: '14.8 m³',
+      value: `${dashboardResumen.consumo_total_hoy.toFixed(1)} m³`,
       icon: TrendingUp,
       bg: '#dbeafe',
       iconColor: '#2b7fff',
@@ -180,7 +188,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <h2 className="text-xl text-gray-900">Consumo de Agua</h2>
             <p className="text-sm text-gray-500 mt-0.5 mb-6">Actualización cada 10 minutos</p>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={consumptionData}>
+              <LineChart data={dashboardResumen.consumo_por_hora}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="time" stroke="#6b7280" style={{ fontSize: 12 }} />
                 <YAxis stroke="#6b7280" style={{ fontSize: 12 }} />
