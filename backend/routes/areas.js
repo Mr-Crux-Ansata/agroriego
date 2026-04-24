@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db');
 const { verificarToken } = require('../middleware/auth');
+const { notificarAlertaPorCorreo } = require('../utils/alertasEmail');
 
 router.get('/', verificarToken, async (req, res) => {
     try {
@@ -146,16 +147,25 @@ async function upsertAlertaPendiente(pool, idArea, idLectura, tipo, severidad, m
         return;
     }
 
+    const fecha = new Date();
     await pool.request()
         .input('id_area', sql.VarChar, idArea)
         .input('id_lectura', sql.BigInt, idLectura)
-        .input('fecha', sql.DateTime, new Date())
+        .input('fecha', sql.DateTime, fecha)
         .input('tipo', sql.VarChar, tipo)
         .input('severidad', sql.VarChar, severidad)
         .input('mensaje', sql.VarChar, mensaje)
         .query(`INSERT INTO Alerta
           (id_area, id_lectura, fecha_generacion, tipo_alerta, severidad, mensaje, leida)
           VALUES (@id_area, @id_lectura, @fecha, @tipo, @severidad, @mensaje, 0)`);
+
+    await notificarAlertaPorCorreo(pool, {
+        id_area: idArea,
+        tipo,
+        severidad,
+        mensaje,
+        fecha,
+    });
 }
 
 async function marcarAlertasPendientesComoAtendidas(pool, idArea, tipos) {

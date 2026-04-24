@@ -34,4 +34,32 @@ async function enviarCorreo(destino, token) {
     }
 }
 
-module.exports = { enviarCorreo };
+async function enviarCorreoAlerta(destino, alerta) {
+    try {
+        const fechaTexto = alerta?.fecha
+            ? new Date(alerta.fecha).toLocaleString('es-MX')
+            : new Date().toLocaleString('es-MX');
+
+        const info = await transporter.sendMail({
+            from: `"AgroRiego" <${process.env.EMAIL_USER}>`,
+            to: destino,
+            subject: `[Alerta ${alerta?.severidad || 'Sistema'}] ${alerta?.tipo || 'Evento'}`,
+            html: `
+                <h2>AgroRiego - Nueva alerta</h2>
+                <p><strong>Área:</strong> ${alerta?.id_area || 'N/D'}</p>
+                <p><strong>Tipo:</strong> ${alerta?.tipo || 'N/D'}</p>
+                <p><strong>Severidad:</strong> ${alerta?.severidad || 'N/D'}</p>
+                <p><strong>Mensaje:</strong> ${alerta?.mensaje || 'Sin detalle'}</p>
+                <p><strong>Fecha:</strong> ${fechaTexto}</p>
+            `,
+        });
+
+        console.log('Correo de alerta enviado:', info.messageId);
+        return { success: true };
+    } catch (error) {
+        console.error('Error enviando correo de alerta:', error.message || error);
+        throw new Error('Error al enviar correo de alerta');
+    }
+}
+
+module.exports = { enviarCorreo, enviarCorreoAlerta };
