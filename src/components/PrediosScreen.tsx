@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { MapPin, Plus, Edit, Droplet, Thermometer } from 'lucide-react';
+import { MapPin, Plus, Edit } from 'lucide-react';
 import { api } from '../api';
 
 interface PrediosScreenProps {
@@ -78,8 +78,128 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     }
   };
 
-  const getAreasDePredio = (id_predio: number) =>
-      areas.filter(a => a.id_predio === id_predio);
+    const getAreasDePredio = (id_predio: number) =>
+      areas.filter(a => Number(a.id_predio) === Number(id_predio));
+
+  const parseCoordinate = (value: any) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const prediosMapeados = predios.map((predio, index) => {
+    const lat = parseCoordinate(predio.latitud);
+    const lng = parseCoordinate(predio.longitud);
+
+    if (lat !== null && lng !== null) {
+      return { ...predio, lat, lng, syntheticPosition: false };
+    }
+
+    const total = Math.max(predios.length, 1);
+    const columns = Math.min(3, total);
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+
+    return {
+      ...predio,
+      lat: 28.6353 - row * 0.01,
+      lng: -106.0889 + col * 0.015,
+      syntheticPosition: true,
+    };
+  });
+
+  const getAreaMarkerPosition = (predioLat: number, predioLng: number, index: number, total: number) => {
+    const angle = (index / Math.max(total, 1)) * Math.PI * 2;
+    const ring = 0.0012 + (index % 3) * 0.00035;
+    return {
+      lat: predioLat + Math.sin(angle) * ring,
+      lng: predioLng + Math.cos(angle) * ring,
+    };
+  };
+
+  const allMapPoints = prediosMapeados.flatMap((predio) => {
+    const predioPoint = [{
+      key: `predio-${predio.id_predio}`,
+      label: predio.nombre,
+      type: 'predio',
+      lat: predio.lat,
+      lng: predio.lng,
+      syntheticPosition: predio.syntheticPosition,
+    }];
+
+    const areasPredio = getAreasDePredio(predio.id_predio);
+    const areaPoints = areasPredio.flatMap((area: any, index: number) => {
+      const areaPos = getAreaMarkerPosition(predio.lat, predio.lng, index, areasPredio.length);
+      return [
+        {
+          key: `area-${area.id_area}`,
+          label: area.nombre,
+          type: 'area',
+          lat: areaPos.lat,
+          lng: areaPos.lng,
+          syntheticPosition: predio.syntheticPosition,
+        },
+        {
+          key: `sensor-${area.id_area}`,
+          label: `Sensor ${area.nombre}`,
+          type: 'sensor',
+          lat: areaPos.lat + 0.00018,
+          lng: areaPos.lng - 0.00016,
+          syntheticPosition: predio.syntheticPosition,
+        },
+      ];
+    });
+
+    return [...predioPoint, ...areaPoints];
+  });
+
+  const latitudes = allMapPoints.map((point) => point.lat);
+  const longitudes = allMapPoints.map((point) => point.lng);
+  const fallbackLat = prediosMapeados[0]?.lat ?? 28.6353;
+  const fallbackLng = prediosMapeados[0]?.lng ?? -106.0889;
+    const prediosSinCoordenadas = prediosMapeados.filter((predio) => predio.syntheticPosition).length;
+
+  const minLat = latitudes.length ? Math.min(...latitudes) : fallbackLat - 0.01;
+  const maxLat = latitudes.length ? Math.max(...latitudes) : fallbackLat + 0.01;
+  const minLng = longitudes.length ? Math.min(...longitudes) : fallbackLng - 0.01;
+  const maxLng = longitudes.length ? Math.max(...longitudes) : fallbackLng + 0.01;
+
+  const projectPoint = (lat: number, lng: number) => {
+    const latRange = Math.max(maxLat - minLat, 0.001);
+    const lngRange = Math.max(maxLng - minLng, 0.001);
+    const x = ((lng - minLng) / lngRange) * 100;
+    const y = (1 - (lat - minLat) / latRange) * 100;
+    return { x, y };
+  };
+
+  const formatCoordinate = (value: any) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed.toFixed(4) : 'Sin coordenadas';
+  };
+
+  const bboxPaddingLat = Math.max((maxLat - minLat) * 0.35, 0.01);
+  const bboxPaddingLng = Math.max((maxLng - minLng) * 0.35, 0.01);
+  const openStreetMapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLng - bboxPaddingLng}%2C${minLat - bboxPaddingLat}%2C${maxLng + bboxPaddingLng}%2C${maxLat + bboxPaddingLat}&layer=mapnik`;
+
+  const pointStyles = {
+    predio: {
+      fill: '#1d4ed8',
+      stroke: '#bfdbfe',
+      radius: 8,
+      label: 'Predio',
+    },
+    area: {
+      fill: '#059669',
+      stroke: '#bbf7d0',
+      radius: 6,
+      label: 'Area de riego',
+    },
+    sensor: {
+      fill: '#f59e0b',
+      stroke: '#fde68a',
+      radius: 5,
+      label: 'Sensor',
+    },
+  } as const;
 
   if (loading) {
     return (
@@ -108,6 +228,86 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
             )}
           </div>
 
+          <Card className="p-4 md:p-6 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <p className="text-sm md:text-base font-medium text-gray-800">
+                Mapa general de predios
+              </p>
+            </div>
+
+            <div className="mt-1 rounded-xl border border-slate-200 bg-[radial-gradient(circle_at_top,#dbeafe,transparent_38%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] p-4">
+              <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                Vista general de ubicaciones
+              </p>
+              {prediosSinCoordenadas > 0 && (
+                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {prediosSinCoordenadas} predio(s) no tienen coordenadas guardadas. Se muestran en posiciones esquemáticas.
+                </div>
+              )}
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)]">
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  <iframe
+                    title="Mapa general de predios"
+                    src={openStreetMapEmbedUrl}
+                    className="h-[360px] w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white/85 p-3">
+                  <p className="mb-3 text-sm font-semibold text-slate-800">Ubicaciones detectadas</p>
+                  {prediosMapeados.length === 0 ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                      No hay predios para mostrar.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {prediosMapeados.map((predio) => {
+                        const areasPredio = getAreasDePredio(predio.id_predio);
+                        return (
+                          <div key={`summary-${predio.id_predio}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
+                              <p className="text-sm font-semibold text-slate-800">{predio.nombre}</p>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-600">
+                              {predio.syntheticPosition
+                                ? 'Ubicacion esquematica temporal'
+                                : `${predio.lat.toFixed(6)}, ${predio.lng.toFixed(6)}`}
+                            </p>
+                            <div className="mt-2 space-y-1">
+                              {areasPredio.length === 0 ? (
+                                <p className="text-xs text-slate-400">Sin areas asociadas</p>
+                              ) : (
+                                areasPredio.slice(0, 4).map((area: any) => (
+                                  <div key={`summary-area-${area.id_area}`} className="flex items-center gap-2 text-xs text-slate-700">
+                                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                                    <span>{area.nombre}</span>
+                                  </div>
+                                ))
+                              )}
+                              {areasPredio.length > 4 && (
+                                <p className="text-xs text-slate-400">+{areasPredio.length - 4} areas mas</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-600">
+              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-blue-700" /> Predio</span>
+              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-600" /> Área de riego</span>
+              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" /> Sensor</span>
+            </div>
+          </Card>
+
           {predios.length === 0 ? (
               <Card className="p-12 rounded-2xl text-center">
                 <p className="text-gray-500">No hay predios registrados</p>
@@ -127,7 +327,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                               <h3 className="text-lg font-semibold mb-1">{predio.nombre}</h3>
                               <p className="text-xs text-gray-600 flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
-                                {predio.latitud?.toFixed(4)}, {predio.longitud?.toFixed(4)}
+                                {formatCoordinate(predio.latitud)}, {formatCoordinate(predio.longitud)}
                               </p>
                             </div>
                           </div>

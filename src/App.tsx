@@ -34,6 +34,11 @@ export default function App() {
   const [selectedData, setSelectedData] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const parseSelectedPredioId = (value: any) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   // Detectar si hay un token de activación en la URL
   const queryParams = new URLSearchParams(location.search);
   const activationToken = queryParams.get('token');
@@ -106,7 +111,13 @@ export default function App() {
       case 'predios':
         return <PrediosScreen userRole={userRole} onNavigate={handleNavigate} />;
       case 'areas':
-        return <AreasScreen userRole={userRole} onNavigate={handleNavigate} />;
+        return (
+          <AreasScreen
+            userRole={userRole}
+            onNavigate={handleNavigate}
+            selectedPredioId={parseSelectedPredioId(selectedData)}
+          />
+        );
       case 'area-detail':
         return <AreaDetailScreen area={selectedData} onNavigate={handleNavigate} />;
       case 'area-config':

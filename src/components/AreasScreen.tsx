@@ -1,27 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Droplet, Calendar, Sprout, Settings } from 'lucide-react';
+import { Droplet, Calendar, Sprout, Settings, ArrowLeft } from 'lucide-react';
 import { api } from '../api';
 
 interface AreasScreenProps {
   userRole: 'admin' | 'user';
   onNavigate: (view: string, data?: any) => void;
+  selectedPredioId?: number | null;
 }
 
-export function AreasScreen({ userRole, onNavigate }: AreasScreenProps) {
+export function AreasScreen({ userRole, onNavigate, selectedPredioId }: AreasScreenProps) {
   const [areas, setAreas] = useState<any[]>([]);
+  const [predios, setPredios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         setLoading(true);
-        const areasData = await api.getAreas();
+        const [areasData, prediosData] = await Promise.all([api.getAreas(), api.getPredios()]);
+        const safeAreas = Array.isArray(areasData) ? areasData : [];
+        const safePredios = Array.isArray(prediosData) ? prediosData : [];
+        setPredios(safePredios);
 
         // Para cada área, obtener la última lectura de telemetría
         const areasConTelemetria = await Promise.all(
-          areasData.map(async (area: any) => {
+          safeAreas.map(async (area: any) => {
             try {
               const telemetria = await api.getTelemetria(area.id_area);
               const ultimaLectura = telemetria && telemetria.length > 0 ? telemetria[0] : null;
@@ -47,6 +52,17 @@ export function AreasScreen({ userRole, onNavigate }: AreasScreenProps) {
 
     cargarDatos();
   }, []);
+
+  const sameId = (a: any, b: any) => Number(a) === Number(b);
+
+  const areasFiltradas = selectedPredioId
+    ? areas.filter((area: any) => sameId(area.id_predio, selectedPredioId))
+    : areas;
+
+  const predioSeleccionado = selectedPredioId
+    ? predios.find((predio: any) => sameId(predio.id_predio, selectedPredioId))
+    : null;
+
 
   const getStatusColor = (humedad: number, capacidad: number, marchitez: number) => {
     if (humedad < marchitez) return 'bg-red-500';
@@ -79,10 +95,22 @@ export function AreasScreen({ userRole, onNavigate }: AreasScreenProps) {
   return (
       <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto space-y-6">
+          {selectedPredioId && (
+            <Button
+              onClick={() => onNavigate('predios')}
+              variant="ghost"
+              className="rounded-xl w-fit"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" /> Volver a Predios
+            </Button>
+          )}
+
           <div>
             <h1 className="text-2xl md:text-3xl mb-2">Áreas de Riego</h1>
             <p className="text-sm md:text-base text-gray-600">
-              Monitoreo de todas las áreas de cultivo
+              {selectedPredioId
+                ? `Monitoreo de áreas dentro de ${predioSeleccionado?.nombre || 'el predio seleccionado'}`
+                : 'Monitoreo de todas las áreas de cultivo'}
             </p>
           </div>
 
@@ -104,13 +132,13 @@ export function AreasScreen({ userRole, onNavigate }: AreasScreenProps) {
             </div>
           </Card>
 
-          {areas.length === 0 ? (
+          {areasFiltradas.length === 0 ? (
               <Card className="p-12 rounded-2xl shadow-sm text-center">
-                <p className="text-gray-500">No hay áreas de riego registradas</p>
+                <p className="text-gray-500">No hay áreas de riego registradas para este predio</p>
               </Card>
           ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {areas.map((area: any) => {
+                {areasFiltradas.map((area: any) => {
                   const humedad = area.humedad_suelo || 0;
                   const badge = getStatusBadge(humedad, area.capacidad_campo, area.punto_marchitez);
 
