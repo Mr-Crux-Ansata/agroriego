@@ -14,27 +14,64 @@ export function ReportesScreen() {
   const [areaSeleccionada, setAreaSeleccionada] = useState('todas');
   const [lecturas, setLecturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [desde, setDesde] = useState(
-      new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
-  );
-  const [hasta, setHasta] = useState(
-      new Date().toISOString().split('T')[0]
-  );
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
   useEffect(() => {
     api.getAreas().then(data => {
       setAreas(Array.isArray(data) ? data : []);
+    }).catch(() => {
+      setAreas([]);
     });
   }, []);
 
   useEffect(() => {
-    if (areaSeleccionada === 'todas' || !areaSeleccionada) return;
-    setLoading(true);
-    api.getTelemetria(areaSeleccionada, desde, hasta).then(data => {
-      setLecturas(Array.isArray(data) ? data.reverse() : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [areaSeleccionada, desde, hasta]);
+    const cargarLecturas = async () => {
+      if (areas.length === 0) {
+        setLecturas([]);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        if (areaSeleccionada === 'todas') {
+          const respuestas = await Promise.all(
+            areas.map(async area => {
+              const data = await api.getTelemetria(area.id_area, desde, hasta);
+              return Array.isArray(data)
+                ? data.map((lectura: any) => ({
+                    ...lectura,
+                    nombre_area: area.nombre,
+                  }))
+                : [];
+            })
+          );
+
+          const merged = respuestas
+            .flat()
+            .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
+
+          setLecturas(merged);
+          return;
+        }
+
+        const data = await api.getTelemetria(areaSeleccionada, desde, hasta);
+        const result = Array.isArray(data)
+          ? data.slice().reverse()
+          : [];
+
+        setLecturas(result);
+      } catch (error) {
+        console.error('Error cargando lecturas para reportes:', error);
+        setLecturas([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarLecturas();
+  }, [areaSeleccionada, areas, desde, hasta]);
 
   const exportarCSV = () => {
     if (lecturas.length === 0) {
@@ -70,6 +107,8 @@ export function ReportesScreen() {
 
   const formatFecha = (str: string) =>
       new Date(str).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' });
+
+  const mostrarArea = areaSeleccionada === 'todas';
 
   return (
       <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
@@ -222,7 +261,10 @@ export function ReportesScreen() {
                     <table className="w-full text-xs">
                       <thead>
                       <tr className="border-b bg-gray-50">
-                        {['Fecha/Hora', 'Hum. %', 'Temp. Suelo', 'Temp. Amb.', 'H. Relativa', 'Radiación', 'ET', 'E. Cond.', 'Riego', 'Flujo'].map(h => (
+                        {[
+                          ...(mostrarArea ? ['Área'] : []),
+                          'Fecha/Hora', 'Hum. %', 'Temp. Suelo', 'Temp. Amb.', 'H. Relativa', 'Radiación', 'ET', 'E. Cond.', 'Riego', 'Flujo'
+                        ].map(h => (
                             <th key={h} className="text-left p-3 text-gray-600 font-medium whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -230,6 +272,7 @@ export function ReportesScreen() {
                       <tbody>
                       {lecturas.slice(0, 50).map((l, i) => (
                           <tr key={i} className="border-b hover:bg-gray-50">
+                            {mostrarArea && <td className="p-3 whitespace-nowrap text-gray-600">{l.nombre_area || l.id_area}</td>}
                             <td className="p-3 whitespace-nowrap text-gray-600">
                               {new Date(l.fecha_hora).toLocaleString('es-MX')}
                             </td>
@@ -256,9 +299,9 @@ export function ReportesScreen() {
               </>
           )}
 
-          {areaSeleccionada !== 'todas' && !loading && lecturas.length === 0 && (
+          {!loading && lecturas.length === 0 && (
               <Card className="p-12 rounded-2xl text-center">
-                <p className="text-gray-500">No hay lecturas en el rango de fechas seleccionado</p>
+                <p className="text-gray-500">No hay lecturas para los filtros seleccionados</p>
               </Card>
           )}
         </div>

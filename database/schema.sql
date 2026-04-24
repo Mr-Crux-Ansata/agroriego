@@ -168,12 +168,42 @@ GO
 -- ============================================================
 
 -- Usuarios
--- Nota: passwords en texto plano solo para desarrollo local.
+-- Passwords demo hasheadas con bcrypt para ser compatibles con /auth/login.
 IF NOT EXISTS (SELECT * FROM Usuario WHERE email = 'admin@agroriego.mx')
-INSERT INTO Usuario (email, password_hash, nombre_completo, rol) VALUES
-    ('admin@agroriego.mx',    'admin123',  'Administrador General', 'Administrador Sistema'),
-    ('predio@agroriego.mx',   'predio123', 'Juan García',           'Administrador Predio'),
-    ('operador@agroriego.mx', 'op123',     'María López',           'Operador Campo');
+INSERT INTO Usuario (email, password_hash, nombre_completo, rol, activo) VALUES
+    ('admin@agroriego.mx', '$2b$10$QNNeIaN83UPKB5h0m0RkOugckT6p1CHU6mMJeZ88cddF9.Yaq3ed.', 'Administrador General', 'Administrador Sistema', 1);
+
+IF NOT EXISTS (SELECT * FROM Usuario WHERE email = 'predio@agroriego.mx')
+INSERT INTO Usuario (email, password_hash, nombre_completo, rol, activo) VALUES
+    ('predio@agroriego.mx', '$2b$10$OUiyk5fv/qC9QuJG7lYUmeJM900eio.sIbNEZvW1c0Blz4LDer0RK', 'Juan García', 'Administrador Predio', 1);
+
+IF NOT EXISTS (SELECT * FROM Usuario WHERE email = 'operador@agroriego.mx')
+INSERT INTO Usuario (email, password_hash, nombre_completo, rol, activo) VALUES
+    ('operador@agroriego.mx', '$2b$10$pUvqRb46l1kaqqqaMS/XLewYCyGMMJLfITHFmIfAluiA8WcqrZ40S', 'María López', 'Operador Campo', 1);
+
+UPDATE Usuario
+SET password_hash = '$2b$10$QNNeIaN83UPKB5h0m0RkOugckT6p1CHU6mMJeZ88cddF9.Yaq3ed.',
+    nombre_completo = 'Administrador General',
+    rol = 'Administrador Sistema',
+    activo = 1
+WHERE email = 'admin@agroriego.mx'
+  AND (password_hash NOT LIKE '$2%' OR activo <> 1 OR rol <> 'Administrador Sistema');
+
+UPDATE Usuario
+SET password_hash = '$2b$10$OUiyk5fv/qC9QuJG7lYUmeJM900eio.sIbNEZvW1c0Blz4LDer0RK',
+    nombre_completo = 'Juan García',
+    rol = 'Administrador Predio',
+    activo = 1
+WHERE email = 'predio@agroriego.mx'
+  AND (password_hash NOT LIKE '$2%' OR activo <> 1 OR rol <> 'Administrador Predio');
+
+UPDATE Usuario
+SET password_hash = '$2b$10$pUvqRb46l1kaqqqaMS/XLewYCyGMMJLfITHFmIfAluiA8WcqrZ40S',
+    nombre_completo = 'María López',
+    rol = 'Operador Campo',
+    activo = 1
+WHERE email = 'operador@agroriego.mx'
+  AND (password_hash NOT LIKE '$2%' OR activo <> 1 OR rol <> 'Operador Campo');
 GO
 
 -- Predios
