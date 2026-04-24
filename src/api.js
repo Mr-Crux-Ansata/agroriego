@@ -225,6 +225,12 @@ export const api = {
 
     getMiPerfil: () => request('/usuarios/perfil'),
 
+    cambiarPassword: (actual, nueva) =>
+        request('/usuarios/perfil/password', {
+            method: 'PUT',
+            body: JSON.stringify({ actual, nueva }),
+        }),
+
     actualizarMiPerfil: (data) =>
         request('/usuarios/perfil', {
             method: 'PUT',

@@ -111,13 +111,35 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
 
   const fotoSrc = fotoPerfilUrl ? `http://localhost:3001${fotoPerfilUrl}` : '';
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess(false);
+
     if (passwordData.nueva !== passwordData.confirmar) {
-      alert('Las contraseñas no coinciden');
+      setPasswordError('Las contraseñas no coinciden');
       return;
     }
-    alert('Contraseña actualizada exitosamente');
+
+    if (passwordData.nueva.length < 6) {
+      setPasswordError('La nueva contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setSavingPassword(true);
+    const res = await api.cambiarPassword(passwordData.actual, passwordData.nueva);
+    setSavingPassword(false);
+
+    if (!res.ok) {
+      setPasswordError(res.error || 'No se pudo cambiar la contraseña');
+      return;
+    }
+
+    setPasswordSuccess(true);
     setPasswordData({ actual: '', nueva: '', confirmar: '' });
   };
 
@@ -313,11 +335,19 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                     />
                   </div>
 
+                  {passwordError && (
+                    <p className="text-red-500 text-sm">{passwordError}</p>
+                  )}
+                  {passwordSuccess && (
+                    <p className="text-green-600 text-sm">Contraseña actualizada correctamente</p>
+                  )}
+
                   <Button
                       type="submit"
+                      disabled={savingPassword}
                       className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 rounded-xl"
                   >
-                    Actualizar Contraseña
+                    {savingPassword ? 'Guardando...' : 'Actualizar Contraseña'}
                   </Button>
                 </form>
               </Card>

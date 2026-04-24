@@ -75,8 +75,9 @@ async function ensureUsuarioProfileColumns(pool) {
 router.get('/', verificarToken, async (req, res) => {
     try {
         const pool = await getPool();
+        await ensureUsuarioProfileColumns(pool);
         const result = await pool.request()
-            .query('SELECT id_usuario, email, nombre_completo, rol, activo FROM Usuario');
+            .query('SELECT id_usuario, email, nombre_completo, rol, activo, foto_perfil_url FROM Usuario');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -249,6 +250,47 @@ router.post('/', verificarToken, async (req, res) => {
 
         res.json({ ok: true });
 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/perfil/password', verificarToken, async (req, res) => {
+    const { actual, nueva } = req.body;
+
+    if (!actual || !nueva) {
+        return res.status(400).json({ error: 'Debes enviar la contraseña actual y la nueva' });
+    }
+
+    if (nueva.length < 6) {
+        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    try {
+        const pool = await getPool();
+
+        const result = await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .query('SELECT password_hash FROM Usuario WHERE id_usuario = @id');
+
+        const usuario = result.recordset[0];
+        if (!usuario) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const bcrypt = require('bcryptjs');
+        const valida = await bcrypt.compare(actual, usuario.password_hash);
+        if (!valida) {
+            return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+        }
+
+        const nuevoHash = await bcrypt.hash(nueva, 10);
+        await pool.request()
+            .input('id', sql.Int, req.user.id_usuario)
+            .input('hash', sql.VarChar, nuevoHash)
+            .query('UPDATE Usuario SET password_hash = @hash WHERE id_usuario = @id');
+
+        res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

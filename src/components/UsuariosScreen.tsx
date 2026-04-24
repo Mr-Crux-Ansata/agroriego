@@ -178,11 +178,20 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
         {usuarios.map(usuario => {
           const config = getRoleConfig(usuario.rol);
           const Icon = config.icon;
+          const fotoSrc = usuario.foto_perfil_url
+            ? `http://localhost:3001${usuario.foto_perfil_url}`
+            : null;
 
           return (
             <Card key={usuario.id_usuario} className="p-4 flex justify-between">
               <div className="flex gap-3">
-                <Icon className={config.colorClass} />
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden ${config.bgClass}`}>
+                  {fotoSrc ? (
+                    <img src={fotoSrc} alt={usuario.nombre_completo} className="w-full h-full object-cover" />
+                  ) : (
+                    <Icon className={`w-5 h-5 ${config.colorClass}`} />
+                  )}
+                </div>
                 <div>
                   <h3>{usuario.nombre_completo}</h3>
                   <p>{usuario.email}</p>
@@ -194,7 +203,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                 onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}
                 variant="outline"
                 size="sm"
-                className="bg-black text white rounded-xl"
+                className="!bg-black !text-white rounded-xl hover:!bg-gray-800 dark:!bg-black dark:!text-white dark:hover:!bg-gray-800"
               >
                 <Trash2 />
               </Button>
