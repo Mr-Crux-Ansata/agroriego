@@ -77,6 +77,40 @@ async function request(url, options = {}, auth = true) {
     }
 }
 
+async function requestFormData(url, formData, auth = true) {
+    try {
+        const headers = {};
+        if (auth) {
+            const token = getToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+        }
+
+        const res = await fetch(`${BASE}${url}`, {
+            method: 'POST',
+            headers,
+            body: formData,
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return {
+                ok: false,
+                error: data.error || 'Error en servidor',
+            };
+        }
+
+        return { ok: true, data };
+    } catch (err) {
+        console.log('❌ FETCH ERROR REAL:', err);
+        return {
+            ok: false,
+            error: 'Error de conexión',
+        };
+    }
+}
+
 // ---------------------
 // API
 // ---------------------
@@ -128,10 +162,16 @@ export const api = {
             body: JSON.stringify(data),
         }),
 
-    activarCuenta: (token, password) =>
+    enviarCodigoSms: (token, telefono) =>
+        request('/auth/enviar-codigo', {
+            method: 'POST',
+            body: JSON.stringify({ token, telefono }),
+        }, false),
+
+    activarCuenta: (token, password, telefono, codigo_sms) =>
         request('/auth/activar', {
             method: 'POST',
-            body: JSON.stringify({ token, password }),
+            body: JSON.stringify({ token, password, telefono, codigo_sms }),
         }, false),
 
     getAreas: async () => {
@@ -182,5 +222,19 @@ export const api = {
         request(`/usuarios/${id}`, {
             method: 'DELETE',
         }),
+
+    getMiPerfil: () => request('/usuarios/perfil'),
+
+    actualizarMiPerfil: (data) =>
+        request('/usuarios/perfil', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    subirFotoPerfil: (file) => {
+        const formData = new FormData();
+        formData.append('imagen', file);
+        return requestFormData('/usuarios/perfil/foto', formData);
+    },
 
 };

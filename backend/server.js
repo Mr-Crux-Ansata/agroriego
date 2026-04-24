@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 const { getPool } = require('./db');
 
@@ -19,6 +20,7 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.text({ type: 'text/*' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // TEST
 app.get('/test', (req, res) => {

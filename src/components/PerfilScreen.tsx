@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { UserCircle, Save, Shield, Eye, Mail, Phone, MapPin } from 'lucide-react';
+import { api } from '../api';
 
 interface PerfilScreenProps {
   userRole: 'admin' | 'user';
@@ -25,6 +26,8 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
     cargo: sessionUser?.rol || '',
     ubicacion: '',
   });
+  const [fotoPerfilUrl, setFotoPerfilUrl] = useState('');
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
 
   const [passwordData, setPasswordData] = useState({
     actual: '',
@@ -43,11 +46,70 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
     }));
   }, [sessionUser]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const cargarPerfil = async () => {
+      const res = await api.getMiPerfil();
+      if (!res.ok || !res.data?.perfil) return;
+
+      const perfil = res.data.perfil;
+      setFormData((prev) => ({
+        ...prev,
+        nombre: perfil.nombre_completo || prev.nombre,
+        email: perfil.email || prev.email,
+        telefono: perfil.telefono || '',
+        cargo: perfil.rol || prev.cargo,
+      }));
+      setFotoPerfilUrl(perfil.foto_perfil_url || '');
+    };
+
+    cargarPerfil();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const res = await api.actualizarMiPerfil({
+      nombre_completo: formData.nombre,
+      telefono: formData.telefono,
+    });
+
+    if (!res.ok) {
+      alert(res.error || 'No se pudo actualizar el perfil');
+      return;
+    }
+
+    if (res.data?.perfil) {
+      const perfil = res.data.perfil;
+      setFormData((prev) => ({
+        ...prev,
+        nombre: perfil.nombre_completo || prev.nombre,
+        telefono: perfil.telefono || '',
+      }));
+      setFotoPerfilUrl(perfil.foto_perfil_url || '');
+    }
+
     alert('Perfil actualizado exitosamente');
     setIsEditing(false);
   };
+
+  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoFoto(true);
+    const res = await api.subirFotoPerfil(file);
+    setSubiendoFoto(false);
+
+    if (!res.ok) {
+      alert(res.error || 'No se pudo subir la foto');
+      return;
+    }
+
+    if (res.data?.foto_perfil_url) {
+      setFotoPerfilUrl(res.data.foto_perfil_url);
+    }
+  };
+
+  const fotoSrc = fotoPerfilUrl ? `http://localhost:3001${fotoPerfilUrl}` : '';
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,8 +143,12 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
               <Card className="p-4 sm:p-6 rounded-2xl shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                   <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-green-500 rounded-2xl flex items-center justify-center shrink-0">
-                      <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-green-500 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden">
+                      {fotoSrc ? (
+                        <img src={fotoSrc} alt="Foto de perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <h2 className="text-lg sm:text-2xl font-medium truncate">{formData.nombre}</h2>
@@ -108,6 +174,19 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                   >
                     {isEditing ? 'Cancelar' : 'Editar Perfil'}
                   </Button>
+                </div>
+
+                <div className="mb-5">
+                  <Label htmlFor="fotoPerfil">Foto de Perfil</Label>
+                  <Input
+                    id="fotoPerfil"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFotoChange}
+                    disabled={subiendoFoto}
+                    className="mt-2 rounded-xl"
+                  />
+                  {subiendoFoto && <p className="text-xs text-gray-500 mt-2">Subiendo imagen...</p>}
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
