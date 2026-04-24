@@ -5,11 +5,69 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { MapPin, Plus, Edit } from 'lucide-react';
+import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { api } from '../api';
 
 interface PrediosScreenProps {
   userRole: 'admin' | 'user';
   onNavigate: (view: string, data?: any) => void;
+}
+
+type MapPointType = 'predio' | 'area' | 'sensor';
+
+interface MapPoint {
+  key: string;
+  label: string;
+  type: MapPointType;
+  lat: number;
+  lng: number;
+  syntheticPosition: boolean;
+}
+
+const markerStyles: Record<MapPointType, { bg: string; text: string; border: string }> = {
+  predio: { bg: '#1d4ed8', text: 'P', border: '#bfdbfe' },
+  area: { bg: '#059669', text: 'A', border: '#bbf7d0' },
+  sensor: { bg: '#f59e0b', text: 'S', border: '#fde68a' },
+};
+
+const markerIcons: Record<MapPointType, L.DivIcon> = {
+  predio: L.divIcon({
+    className: '',
+    html: `<div style="width:28px;height:28px;border-radius:9999px;background:${markerStyles.predio.bg};color:#fff;border:2px solid ${markerStyles.predio.border};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25);">${markerStyles.predio.text}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  }),
+  area: L.divIcon({
+    className: '',
+    html: `<div style="width:24px;height:24px;border-radius:9999px;background:${markerStyles.area.bg};color:#fff;border:2px solid ${markerStyles.area.border};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.2);">${markerStyles.area.text}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  }),
+  sensor: L.divIcon({
+    className: '',
+    html: `<div style="width:22px;height:22px;border-radius:9999px;background:${markerStyles.sensor.bg};color:#111827;border:2px solid ${markerStyles.sensor.border};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.2);">${markerStyles.sensor.text}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  }),
+};
+
+function FitMapToPoints({ points }: { points: MapPoint[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (points.length === 0) return;
+
+    if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 16);
+      return;
+    }
+
+    const bounds = L.latLngBounds(points.map((point) => [point.lat, point.lng] as [number, number]));
+    map.fitBounds(bounds.pad(0.25));
+  }, [map, points]);
+
+  return null;
 }
 
 export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
@@ -116,11 +174,11 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     };
   };
 
-  const allMapPoints = prediosMapeados.flatMap((predio) => {
+  const allMapPoints: MapPoint[] = prediosMapeados.flatMap((predio) => {
     const predioPoint = [{
       key: `predio-${predio.id_predio}`,
       label: predio.nombre,
-      type: 'predio',
+      type: 'predio' as const,
       lat: predio.lat,
       lng: predio.lng,
       syntheticPosition: predio.syntheticPosition,
@@ -133,7 +191,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
         {
           key: `area-${area.id_area}`,
           label: area.nombre,
-          type: 'area',
+          type: 'area' as const,
           lat: areaPos.lat,
           lng: areaPos.lng,
           syntheticPosition: predio.syntheticPosition,
@@ -141,7 +199,7 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
         {
           key: `sensor-${area.id_area}`,
           label: `Sensor ${area.nombre}`,
-          type: 'sensor',
+          type: 'sensor' as const,
           lat: areaPos.lat + 0.00018,
           lng: areaPos.lng - 0.00016,
           syntheticPosition: predio.syntheticPosition,
@@ -163,43 +221,10 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const minLng = longitudes.length ? Math.min(...longitudes) : fallbackLng - 0.01;
   const maxLng = longitudes.length ? Math.max(...longitudes) : fallbackLng + 0.01;
 
-  const projectPoint = (lat: number, lng: number) => {
-    const latRange = Math.max(maxLat - minLat, 0.001);
-    const lngRange = Math.max(maxLng - minLng, 0.001);
-    const x = ((lng - minLng) / lngRange) * 100;
-    const y = (1 - (lat - minLat) / latRange) * 100;
-    return { x, y };
-  };
-
   const formatCoordinate = (value: any) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed.toFixed(4) : 'Sin coordenadas';
   };
-
-  const bboxPaddingLat = Math.max((maxLat - minLat) * 0.35, 0.01);
-  const bboxPaddingLng = Math.max((maxLng - minLng) * 0.35, 0.01);
-  const openStreetMapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLng - bboxPaddingLng}%2C${minLat - bboxPaddingLat}%2C${maxLng + bboxPaddingLng}%2C${maxLat + bboxPaddingLat}&layer=mapnik`;
-
-  const pointStyles = {
-    predio: {
-      fill: '#1d4ed8',
-      stroke: '#bfdbfe',
-      radius: 8,
-      label: 'Predio',
-    },
-    area: {
-      fill: '#059669',
-      stroke: '#bbf7d0',
-      radius: 6,
-      label: 'Area de riego',
-    },
-    sensor: {
-      fill: '#f59e0b',
-      stroke: '#fde68a',
-      radius: 5,
-      label: 'Sensor',
-    },
-  } as const;
 
   if (loading) {
     return (
@@ -228,44 +253,56 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
             )}
           </div>
 
-          <Card className="p-4 md:p-6 rounded-2xl shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin className="w-4 h-4 text-blue-600" />
-              <p className="text-sm md:text-base font-medium text-gray-800">
+          <Card className="p-4 md:p-6 rounded-2xl shadow-sm border border-gray-200 bg-white">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-4 h-4 text-gray-600" />
+              <p className="text-base font-medium text-gray-900">
                 Mapa general de predios
               </p>
             </div>
 
-            <div className="mt-1 rounded-xl border border-slate-200 bg-[radial-gradient(circle_at_top,#dbeafe,transparent_38%),linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] p-4">
-              <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            <div className="mt-1 rounded-2xl border border-gray-200 bg-white p-4">
+              <p className="mb-3 text-sm text-gray-600">
                 Vista general de ubicaciones
               </p>
               {prediosSinCoordenadas > 0 && (
-                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   {prediosSinCoordenadas} predio(s) no tienen coordenadas guardadas. Se muestran en posiciones esquemáticas.
                 </div>
               )}
               <div className="grid gap-4 md:grid-cols-3 md:items-start">
                 <div
-                  className="overflow-hidden rounded-xl border border-slate-200 bg-white md:col-span-2"
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white md:col-span-2"
                   style={{ height: 'clamp(560px, 78vh, 920px)' }}
                 >
-                  <iframe
-                    title="Mapa general de predios"
-                    src={openStreetMapEmbedUrl}
+                  <MapContainer
+                    center={[fallbackLat, fallbackLng]}
+                    zoom={14}
+                    scrollWheelZoom={false}
                     className="h-full w-full"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <FitMapToPoints points={allMapPoints} />
+                    {allMapPoints.map((point) => (
+                      <Marker key={point.key} position={[point.lat, point.lng]} icon={markerIcons[point.type]}>
+                        <Tooltip direction="top" offset={[0, -8]}>
+                          {point.label}
+                        </Tooltip>
+                      </Marker>
+                    ))}
+                  </MapContainer>
                 </div>
 
                 <div
-                  className="rounded-xl border border-slate-200 bg-white/85 p-3 md:overflow-auto"
+                  className="rounded-2xl border border-gray-200 bg-white p-3 md:overflow-auto"
                   style={{ maxHeight: 'clamp(560px, 78vh, 920px)' }}
                 >
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Ubicaciones detectadas</p>
+                  <p className="mb-3 text-sm font-medium text-gray-700">Ubicaciones detectadas</p>
                   {prediosMapeados.length === 0 ? (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-4 text-sm text-gray-500">
                       No hay predios para mostrar.
                     </div>
                   ) : (
@@ -273,29 +310,29 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                       {prediosMapeados.map((predio) => {
                         const areasPredio = getAreasDePredio(predio.id_predio);
                         return (
-                          <div key={`summary-${predio.id_predio}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div key={`summary-${predio.id_predio}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                             <div className="flex items-center gap-2">
                               <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
-                              <p className="text-sm font-semibold text-slate-800">{predio.nombre}</p>
+                              <p className="text-sm font-semibold text-gray-800">{predio.nombre}</p>
                             </div>
-                            <p className="mt-1 text-[11px] text-slate-600">
+                            <p className="mt-1 text-xs text-gray-600">
                               {predio.syntheticPosition
                                 ? 'Ubicacion esquematica temporal'
                                 : `${predio.lat.toFixed(6)}, ${predio.lng.toFixed(6)}`}
                             </p>
                             <div className="mt-2 space-y-1">
                               {areasPredio.length === 0 ? (
-                                <p className="text-[11px] text-slate-400">Sin areas asociadas</p>
+                                <p className="text-xs text-gray-400">Sin areas asociadas</p>
                               ) : (
                                 areasPredio.slice(0, 4).map((area: any) => (
-                                  <div key={`summary-area-${area.id_area}`} className="flex items-center gap-2 text-[11px] text-slate-700">
+                                  <div key={`summary-area-${area.id_area}`} className="flex items-center gap-2 text-xs text-gray-700">
                                     <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
                                     <span>{area.nombre}</span>
                                   </div>
                                 ))
                               )}
                               {areasPredio.length > 4 && (
-                                <p className="text-[11px] text-slate-400">+{areasPredio.length - 4} areas mas</p>
+                                <p className="text-xs text-gray-400">+{areasPredio.length - 4} areas mas</p>
                               )}
                             </div>
                           </div>
