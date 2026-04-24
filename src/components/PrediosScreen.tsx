@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { MapPin, Plus, Edit } from 'lucide-react';
+import { MapPin, Plus, Edit, Check } from 'lucide-react';
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { api } from '../api';
@@ -41,7 +41,22 @@ const markerStyles: Record<MapPointType, { bg: string; text: string; border: str
   sensor: { bg: '#f59e0b', text: 'S', border: '#fde68a' },
 };
 
-const predioColorPalette = ['#1d4ed8', '#0f766e', '#9333ea', '#dc2626', '#ea580c', '#4f46e5', '#15803d'];
+const predioColorPalette = ['#1d4ed8', '#dc2626', '#16a34a', '#7c3aed', '#ea580c', '#0f766e', '#c026d3', '#b45309'];
+const areaColorPalette = ['#22d3ee', '#34d399', '#38bdf8', '#4ade80', '#a3e635', '#facc15', '#f59e0b', '#06b6d4', '#10b981', '#60a5fa'];
+const areaSensorCatalog = [
+  'Humedad de suelo',
+  'Potencial hidrico',
+  'Electroconductividad',
+  'Temperatura de suelo',
+  'NDVI',
+  'Estatus de riego',
+  'Flujo de riego',
+  'Temperatura ambiental',
+  'Humedad relativa',
+  'Velocidad de viento',
+  'Radiacion solar',
+  'Evapotranspiracion',
+];
 
 const hexToRgba = (hex: string, alpha: number) => {
   const safeHex = hex.replace('#', '');
@@ -107,7 +122,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   const [editingPredio, setEditingPredio] = useState<any>(null);
   const [error, setError] = useState('');
   const [selectedPredioId, setSelectedPredioId] = useState<number | null>(null);
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
+  const [selectedPredioPanelStep, setSelectedPredioPanelStep] = useState<'areas' | 'sensores'>('areas');
   const [activeLayer, setActiveLayer] = useState<MapLayerFilter>('all');
   const [formData, setFormData] = useState({
     nombre: '',
@@ -128,6 +144,12 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  useEffect(() => {
+    if (selectedAreaIds.length === 0 || !selectedPredioId) {
+      setSelectedPredioPanelStep('areas');
+    }
+  }, [selectedAreaIds, selectedPredioId]);
 
   const handleCreate = () => {
     setEditingPredio(null);
@@ -207,21 +229,60 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
 
   const getPredioColor = (idPredio: number) => predioColorMap.get(Number(idPredio)) ?? markerStyles.predio.bg;
 
-  const buildPointIcon = (point: MapPoint, muted: boolean) => {
+  const areaColorMap = useMemo(() => {
+    const colorMap = new Map<string, string>();
+    const areaIds = Array.from(
+      new Set(
+        areas
+          .map((area: any) => String(area.id_area ?? '').trim())
+          .filter((id: string) => id.length > 0)
+      )
+    ).sort();
+
+    areaIds.forEach((id, index) => {
+      colorMap.set(id, areaColorPalette[index % areaColorPalette.length]);
+    });
+
+    return colorMap;
+  }, [areas]);
+
+  const getAreaColor = (idArea?: string) => {
+    if (!idArea) return markerStyles.area.bg;
+    return areaColorMap.get(String(idArea)) ?? markerStyles.area.bg;
+  };
+
+  const buildPointIcon = (point: MapPoint, muted: boolean, isSelectedArea: boolean) => {
     const base = markerStyles[point.type];
-    const size = point.type === 'predio' ? 28 : point.type === 'area' ? 24 : 22;
+    const baseSize = point.type === 'predio' ? 28 : point.type === 'area' ? 24 : 22;
+    const size = isSelectedArea ? baseSize + 6 : baseSize;
     const anchor = Math.floor(size / 2);
+    const areaBgColor = point.type === 'area' && activeLayer === 'area'
+      ? getAreaColor(point.id_area)
+      : base.bg;
     const bgColor = muted
       ? '#9ca3af'
       : point.type === 'predio'
         ? getPredioColor(point.id_predio)
-        : base.bg;
-    const borderColor = muted ? '#d1d5db' : base.border;
-    const textColor = muted ? '#ffffff' : point.type === 'sensor' ? '#111827' : '#ffffff';
+        : areaBgColor;
+    const borderColor = muted
+      ? '#d1d5db'
+      : point.type === 'area' && activeLayer === 'area'
+        ? hexToRgba(areaBgColor, 0.95)
+        : base.border;
+    const textColor = muted
+      ? '#ffffff'
+      : point.type === 'sensor' || (point.type === 'area' && activeLayer === 'area')
+        ? '#111827'
+        : '#ffffff';
+
+    const borderWidth = isSelectedArea ? 3 : 2;
+    const shadow = isSelectedArea
+      ? '0 0 0 4px rgba(16,185,129,.2), 0 6px 14px rgba(0,0,0,.28)'
+      : '0 2px 8px rgba(0,0,0,.2)';
 
     return L.divIcon({
       className: '',
-      html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${bgColor};color:${textColor};border:2px solid ${borderColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${point.type === 'predio' ? 12 : 11}px;box-shadow:0 2px 8px rgba(0,0,0,.2);">${base.text}</div>`,
+      html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${bgColor};color:${textColor};border:${borderWidth}px solid ${borderColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${point.type === 'predio' ? 12 : 11}px;box-shadow:${shadow};">${base.text}</div>`,
       iconSize: [size, size],
       iconAnchor: [anchor, anchor],
     });
@@ -233,6 +294,22 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     return {
       lat: predioLat + Math.sin(angle) * ring,
       lng: predioLng + Math.cos(angle) * ring,
+    };
+  };
+
+  const getSensorMarkerPosition = (
+    areaLat: number,
+    areaLng: number,
+    areaIndex: number,
+    sensorIndex: number,
+    totalSensors: number,
+  ) => {
+    const angleBase = (sensorIndex / Math.max(totalSensors, 1)) * Math.PI * 2;
+    const angle = angleBase + areaIndex * 0.22;
+    const ring = 0.00024 + Math.floor(sensorIndex / 6) * 0.00016;
+    return {
+      lat: areaLat + Math.sin(angle) * ring,
+      lng: areaLng + Math.cos(angle) * ring,
     };
   };
 
@@ -250,6 +327,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     const areasPredio = getAreasDePredio(predio.id_predio);
     const areaPoints = areasPredio.flatMap((area: any, index: number) => {
       const areaPos = getAreaMarkerPosition(predio.lat, predio.lng, index, areasPredio.length);
+      const sensorPos = getSensorMarkerPosition(areaPos.lat, areaPos.lng, index, 0, 1);
+
       return [
         {
           key: `area-${area.id_area}`,
@@ -263,12 +342,12 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
         },
         {
           key: `sensor-${area.id_area}`,
-          label: `Sensor ${area.nombre}`,
+          label: `Sensores de ${area.nombre}`,
           type: 'sensor' as const,
           id_predio: Number(predio.id_predio),
           id_area: area.id_area,
-          lat: areaPos.lat + 0.00018,
-          lng: areaPos.lng - 0.00016,
+          lat: sensorPos.lat,
+          lng: sensorPos.lng,
           syntheticPosition: predio.syntheticPosition,
         },
       ];
@@ -292,9 +371,13 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     ? getAreasDePredio(predioSeleccionado.id_predio)
     : [];
 
+  const areasSeleccionadasDetalle = selectedAreaIds
+    .map((idArea) => areasDelPredioSeleccionado.find((area: any) => String(area.id_area ?? '').trim() === idArea))
+    .filter(Boolean);
+
   const selectionFilteredPoints = allMapPoints.filter((point) => {
-    if (selectedAreaId) {
-      return point.id_area === selectedAreaId || (point.type === 'predio' && point.id_predio === Number(selectedPredioId));
+    if (selectedAreaIds.length > 0) {
+      return selectedAreaIds.includes(String(point.id_area ?? '')) || (point.type === 'predio' && point.id_predio === Number(selectedPredioId));
     }
     if (selectedPredioId) {
       return point.id_predio === Number(selectedPredioId);
@@ -307,8 +390,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     return point.type === activeLayer;
   });
 
-  const selectedAreaPoint = selectedAreaId
-    ? visibleMapPoints.find((point) => point.type === 'area' && point.id_area === selectedAreaId)
+  const selectedAreaPoint = selectedAreaIds.length === 1
+    ? visibleMapPoints.find((point) => point.type === 'area' && point.id_area === selectedAreaIds[0])
     : null;
 
   const selectedPredioPoint = selectedPredioId
@@ -402,19 +485,30 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                     />
                     <MapViewportController points={visibleMapPoints} focusTarget={focusTarget} />
                     {visibleMapPoints.map((point) => (
+                      (() => {
+                        const isSelectedArea = point.type === 'area' && selectedAreaIds.includes(String(point.id_area ?? ''));
+                        return (
                       <Marker
                         key={point.key}
                         position={[point.lat, point.lng]}
-                        icon={buildPointIcon(point, selectedPredioId !== null && point.id_predio !== Number(selectedPredioId))}
+                        icon={buildPointIcon(point, selectedPredioId !== null && point.id_predio !== Number(selectedPredioId), isSelectedArea)}
+                        zIndexOffset={isSelectedArea ? 1000 : 0}
                         eventHandlers={{
                           click: () => {
                             if (point.type === 'predio') {
                               setSelectedPredioId(point.id_predio);
-                              setSelectedAreaId(null);
+                              setSelectedAreaIds([]);
+                              setSelectedPredioPanelStep('areas');
                               return;
                             }
                             setSelectedPredioId(point.id_predio);
-                            if (point.id_area) setSelectedAreaId(point.id_area);
+                            setSelectedPredioPanelStep('areas');
+                            if (point.id_area) {
+                              const areaId = String(point.id_area);
+                              setSelectedAreaIds((prev) =>
+                                prev.includes(areaId) ? prev.filter((id) => id !== areaId) : [...prev, areaId]
+                              );
+                            }
                           },
                         }}
                       >
@@ -422,12 +516,14 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                           {point.label}
                         </Tooltip>
                       </Marker>
+                        );
+                      })()
                     ))}
                   </MapContainer>
                 </div>
 
                 <div
-                  className="rounded-2xl border border-gray-200 bg-white p-3 md:overflow-auto"
+                  className="rounded-2xl border border-gray-200 bg-white p-3 overflow-y-auto overflow-x-hidden"
                   style={{
                     maxHeight: 'clamp(560px, 78vh, 920px)',
                     borderColor: selectedPredioColor ?? undefined,
@@ -446,7 +542,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                         className="h-7 rounded-lg px-2 text-xs"
                         onClick={() => {
                           setSelectedPredioId(null);
-                          setSelectedAreaId(null);
+                          setSelectedAreaIds([]);
+                          setSelectedPredioPanelStep('areas');
                         }}
                       >
                         Ver todos
@@ -480,36 +577,104 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                         </p>
                       </div>
 
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Areas del predio</p>
-                        {areasDelPredioSeleccionado.length === 0 ? (
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-500">
-                            Este predio no tiene areas registradas.
+                      {selectedPredioPanelStep === 'areas' ? (
+                        <>
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Areas del predio</p>
+                            {areasDelPredioSeleccionado.length === 0 ? (
+                              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-500">
+                                Este predio no tiene areas registradas.
+                              </div>
+                            ) : (
+                              areasDelPredioSeleccionado.map((area: any) => {
+                                const areaId = String(area.id_area ?? '').trim();
+                                const isSelected = selectedAreaIds.includes(areaId);
+                                return (
+                                  <button
+                                    key={`menu-area-${areaId}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedAreaIds((prev) =>
+                                        prev.includes(areaId) ? prev.filter((id) => id !== areaId) : [...prev, areaId]
+                                      );
+                                    }}
+                                    className={`w-full rounded-xl border px-3 py-2 text-left transition-colors ${
+                                      isSelected
+                                        ? 'border-gray-400 bg-gray-100 ring-2 ring-gray-300'
+                                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                      <span
+                                        className="inline-block h-2.5 w-2.5 rounded-full"
+                                        style={{ backgroundColor: activeLayer === 'area' ? getAreaColor(area.id_area) : '#059669' }}
+                                      />
+                                      <p className="text-sm font-medium text-gray-800">{area.nombre}</p>
+                                      </div>
+                                      <span className="inline-flex items-center" title={isSelected ? 'Área activa' : 'Área no seleccionada'}>
+                                        <span
+                                          className="inline-flex h-4 w-4 items-center justify-center rounded border transition-colors"
+                                          style={
+                                            isSelected
+                                              ? { backgroundColor: '#16a34a', borderColor: '#15803d', borderWidth: '2px' }
+                                              : { backgroundColor: '#e5e7eb', borderColor: '#9ca3af', borderWidth: '1px' }
+                                          }
+                                        >
+                                          {isSelected && <Check className="h-3 w-3 text-white" />}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">{area.tipo_cultivo} · {areaId}</p>
+                                  </button>
+                                );
+                              })
+                            )}
                           </div>
-                        ) : (
-                          areasDelPredioSeleccionado.map((area: any) => {
-                            const isSelected = selectedAreaId === area.id_area;
-                            return (
-                              <button
-                                key={`menu-area-${area.id_area}`}
+
+                          {areasSeleccionadasDetalle.length > 0 && (
+                            <div>
+                              <Button
                                 type="button"
-                                onClick={() => setSelectedAreaId(area.id_area)}
-                                className={`w-full rounded-xl border px-3 py-2 text-left transition-colors ${
-                                  isSelected
-                                    ? 'border-emerald-300 bg-emerald-50'
-                                    : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
-                                }`}
+                                size="sm"
+                                variant="default"
+                                className="h-8 rounded-lg"
+                                onClick={() => setSelectedPredioPanelStep('sensores')}
                               >
-                                <div className="flex items-center gap-2">
-                                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-600" />
-                                  <p className="text-sm font-medium text-gray-800">{area.nombre}</p>
-                                </div>
-                                <p className="mt-1 text-xs text-gray-500">{area.tipo_cultivo} · {area.id_area}</p>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
+                                Ver sensores
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Sensores del area seleccionada</p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 rounded-lg px-2 text-xs"
+                              onClick={() => setSelectedPredioPanelStep('areas')}
+                            >
+                              Volver a areas
+                            </Button>
+                          </div>
+                          {areasSeleccionadasDetalle.map((area: any) => (
+                            <div key={`detalle-sensores-${area.id_area}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                              <p className="text-xs font-semibold text-amber-900">{area.nombre} · {area.id_area}</p>
+                              <div className="mt-2 grid grid-cols-1 gap-1">
+                                {areaSensorCatalog.map((sensorName) => (
+                                  <div key={`sensor-detalle-${area.id_area}-${sensorName}`} className="flex items-center gap-2 text-xs text-amber-800">
+                                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                    <span>{sensorName}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -521,7 +686,8 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                             type="button"
                             onClick={() => {
                               setSelectedPredioId(Number(predio.id_predio));
-                              setSelectedAreaId(null);
+                              setSelectedAreaIds([]);
+                              setSelectedPredioPanelStep('areas');
                             }}
                             className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100"
                           >
@@ -543,7 +709,10 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                               ) : (
                                 areasPredio.slice(0, 4).map((area: any) => (
                                   <div key={`summary-area-${area.id_area}`} className="flex items-center gap-2 text-xs text-gray-700">
-                                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
+                                    <span
+                                      className="inline-block h-2 w-2 rounded-full"
+                                      style={{ backgroundColor: activeLayer === 'area' ? getAreaColor(area.id_area) : '#059669' }}
+                                    />
                                     <span>{area.nombre}</span>
                                   </div>
                                 ))
