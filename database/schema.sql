@@ -235,8 +235,20 @@ GO
 -- Predios
 IF NOT EXISTS (SELECT * FROM Predio WHERE nombre = 'Predio Norte')
 INSERT INTO Predio (id_usuario, nombre, latitud, longitud) VALUES
-    (2, 'Predio Norte', 28.63530000, -106.08890000),
-    (2, 'Predio Sur',   28.62000000, -106.07500000);
+    (2, 'Predio Norte', 28.68842920, -106.08123870),
+    (2, 'Predio Sur',   28.68112920, -106.07223870);
+GO
+
+UPDATE Predio
+SET latitud = 28.68842920,
+    longitud = -106.08123870
+WHERE nombre = 'Predio Norte';
+GO
+
+UPDATE Predio
+SET latitud = 28.68112920,
+    longitud = -106.07223870
+WHERE nombre = 'Predio Sur';
 GO
 
 -- Áreas de riego

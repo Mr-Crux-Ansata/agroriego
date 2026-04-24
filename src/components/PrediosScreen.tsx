@@ -245,19 +245,25 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                   {prediosSinCoordenadas} predio(s) no tienen coordenadas guardadas. Se muestran en posiciones esquemáticas.
                 </div>
               )}
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)]">
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="grid gap-4 md:grid-cols-3 md:items-start">
+                <div
+                  className="overflow-hidden rounded-xl border border-slate-200 bg-white md:col-span-2"
+                  style={{ height: 'clamp(560px, 78vh, 920px)' }}
+                >
                   <iframe
                     title="Mapa general de predios"
                     src={openStreetMapEmbedUrl}
-                    className="h-[360px] w-full"
+                    className="h-full w-full"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white/85 p-3">
-                  <p className="mb-3 text-sm font-semibold text-slate-800">Ubicaciones detectadas</p>
+                <div
+                  className="rounded-xl border border-slate-200 bg-white/85 p-3 md:overflow-auto"
+                  style={{ maxHeight: 'clamp(560px, 78vh, 920px)' }}
+                >
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Ubicaciones detectadas</p>
                   {prediosMapeados.length === 0 ? (
                     <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
                       No hay predios para mostrar.
@@ -272,24 +278,24 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                               <span className="inline-block h-3 w-3 rounded-full bg-blue-700" />
                               <p className="text-sm font-semibold text-slate-800">{predio.nombre}</p>
                             </div>
-                            <p className="mt-1 text-xs text-slate-600">
+                            <p className="mt-1 text-[11px] text-slate-600">
                               {predio.syntheticPosition
                                 ? 'Ubicacion esquematica temporal'
                                 : `${predio.lat.toFixed(6)}, ${predio.lng.toFixed(6)}`}
                             </p>
                             <div className="mt-2 space-y-1">
                               {areasPredio.length === 0 ? (
-                                <p className="text-xs text-slate-400">Sin areas asociadas</p>
+                                <p className="text-[11px] text-slate-400">Sin areas asociadas</p>
                               ) : (
                                 areasPredio.slice(0, 4).map((area: any) => (
-                                  <div key={`summary-area-${area.id_area}`} className="flex items-center gap-2 text-xs text-slate-700">
-                                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                                  <div key={`summary-area-${area.id_area}`} className="flex items-center gap-2 text-[11px] text-slate-700">
+                                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
                                     <span>{area.nombre}</span>
                                   </div>
                                 ))
                               )}
                               {areasPredio.length > 4 && (
-                                <p className="text-xs text-slate-400">+{areasPredio.length - 4} areas mas</p>
+                                <p className="text-[11px] text-slate-400">+{areasPredio.length - 4} areas mas</p>
                               )}
                             </div>
                           </div>
