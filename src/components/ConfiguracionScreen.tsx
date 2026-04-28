@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,12 +6,17 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Save, Bell, Clock, Building } from 'lucide-react';
+import { api } from '../api';
 
 interface ConfiguracionScreenProps {
   userRole: 'admin' | 'user';
 }
 
 export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
+  const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+  const normalizarRFC = (value: string) =>
+    value.toUpperCase().replace(/[^A-Z0-9Ñ&]/g, '');
+
   const [config, setConfig] = useState({
     frecuenciaActualizacion: '10',
     notificacionesEmail: true,
@@ -20,10 +25,68 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
     rfc: 'ARM123456ABC',
     emailContacto: 'contacto@agroriego.com',
   });
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const cargarConfiguracion = async () => {
+      try {
+        const res = await api.getConfiguracionGeneral();
+        const cfg = res.data?.configuracion;
+        if (!res.ok || !cfg) return;
+
+        setConfig({
+          frecuenciaActualizacion: String(cfg.frecuencia_actualizacion_min ?? 10),
+          notificacionesEmail: Boolean(cfg.notificaciones_email),
+          emailNotificaciones: cfg.email_notificaciones || 'admin@agroriego.com',
+          nombreCliente: cfg.nombre_cliente || '',
+          rfc: cfg.rfc || '',
+          emailContacto: cfg.email_contacto || '',
+        });
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    cargarConfiguracion();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Configuración guardada exitosamente');
+    setError('');
+    setSuccess('');
+
+    const rfcNormalizado = normalizarRFC(config.rfc);
+
+    if (!config.nombreCliente || !config.emailContacto || !rfcNormalizado) {
+      setError('Todos los campos son obligatorios');
+      return;
+    }
+
+    if (!RFC_REGEX.test(rfcNormalizado)) {
+      setError('RFC inválido. Usa formato de 12 o 13 caracteres (ej: XAXX010101000).');
+      return;
+    }
+
+    setGuardando(true);
+    const res = await api.actualizarConfiguracionGeneral({
+      frecuencia_actualizacion_min: Number(config.frecuenciaActualizacion),
+      notificaciones_email: config.notificacionesEmail,
+      email_notificaciones: config.emailNotificaciones,
+      nombre_cliente: config.nombreCliente,
+      rfc: rfcNormalizado,
+      email_contacto: config.emailContacto,
+    });
+    setGuardando(false);
+
+    if (!res.ok) {
+      alert(res.error || 'No se pudo guardar la configuración');
+      return;
+    }
+
+    setSuccess('Configuración guardada exitosamente.');
   };
 
   if (userRole !== 'admin') {
@@ -35,6 +98,18 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
             <p className="text-gray-600">
               Solo los administradores pueden modificar la configuración del sistema
             </p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (cargando) {
+    return (
+      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-6 md:p-8 rounded-2xl shadow-sm text-center">
+            <p className="text-gray-600">Cargando configuración...</p>
           </Card>
         </div>
       </div>
@@ -149,7 +224,11 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
                 <Input
                   id="nombreCliente"
                   value={config.nombreCliente}
-                  onChange={(e) => setConfig({ ...config, nombreCliente: e.target.value })}
+                  onChange={(e) => {
+                    setError('');
+                    setSuccess('');
+                    setConfig({ ...config, nombreCliente: e.target.value });
+                  }}
                   className="rounded-xl"
                   required
                 />
@@ -160,10 +239,17 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
                 <Input
                   id="rfc"
                   value={config.rfc}
-                  onChange={(e) => setConfig({ ...config, rfc: e.target.value })}
+                  onChange={(e) => {
+                    setError('');
+                    setSuccess('');
+                    setConfig({ ...config, rfc: normalizarRFC(e.target.value) });
+                  }}
                   className="rounded-xl"
                   required
                 />
+                {error && (
+                  <p className="text-sm text-red-700">{error}</p>
+                )}
               </div>
 
               <div className="space-y-2 col-span-1">
@@ -172,7 +258,11 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
                   id="emailContacto"
                   type="email"
                   value={config.emailContacto}
-                  onChange={(e) => setConfig({ ...config, emailContacto: e.target.value })}
+                  onChange={(e) => {
+                    setError('');
+                    setSuccess('');
+                    setConfig({ ...config, emailContacto: e.target.value });
+                  }}
                   className="rounded-xl"
                   required
                 />
@@ -207,11 +297,18 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
           {/* Botón de Guardar */}
           <Button
             type="submit"
+            disabled={guardando}
             className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 rounded-xl"
           >
             <Save className="w-5 h-5 mr-2" />
-            Guardar Configuración
+            {guardando ? 'Guardando...' : 'Guardar Configuración'}
           </Button>
+
+          {success && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+              {success}
+            </p>
+          )}
         </form>
       </div>
     </div>

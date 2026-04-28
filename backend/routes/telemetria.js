@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db');
+const { notificarAlertaPorCorreo } = require('../utils/alertasEmail');
 
-// Este endpoint lo llama el Módulo IoT, sin token
+
 router.post('/', async (req, res) => {
     const {
         id_area, humedad_suelo, potencial_hidrico,
@@ -86,16 +87,25 @@ router.post('/', async (req, res) => {
 });
 
 async function insertarAlerta(pool, id_area, id_lectura, tipo, severidad, mensaje) {
+    const fecha = new Date();
     await pool.request()
         .input('id_area', sql.VarChar, id_area)
         .input('id_lectura', sql.BigInt, id_lectura)
-        .input('fecha', sql.DateTime, new Date())
+        .input('fecha', sql.DateTime, fecha)
         .input('tipo', sql.VarChar, tipo)
         .input('severidad', sql.VarChar, severidad)
         .input('mensaje', sql.VarChar, mensaje)
         .query(`INSERT INTO Alerta
             (id_area, id_lectura, fecha_generacion, tipo_alerta, severidad, mensaje, leida)
             VALUES (@id_area, @id_lectura, @fecha, @tipo, @severidad, @mensaje, 0)`);
+
+    await notificarAlertaPorCorreo(pool, {
+        id_area,
+        tipo,
+        severidad,
+        mensaje,
+        fecha,
+    });
 }
 
 module.exports = router;

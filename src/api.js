@@ -216,10 +216,24 @@ export const api = {
         return res.data;
     },
 
+    getDashboardResumen: async () => {
+        const res = await request('/dashboard/resumen');
+        return res.data;
+    },
+
     importarTelemetriaCSV: (csvContent, areaId) =>
         request('/reportes/importar-csv', {
             method: 'POST',
             body: JSON.stringify({ csvContent, areaId }),
+        }),
+
+    // ⚙️ CONFIGURACION GENERAL
+    getConfiguracionGeneral: () => request('/configuracion'),
+
+    actualizarConfiguracionGeneral: (data) =>
+        request('/configuracion', {
+            method: 'PUT',
+            body: JSON.stringify(data),
         }),
 
     // 🚨 ALERTAS

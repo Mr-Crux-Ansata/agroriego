@@ -81,6 +81,40 @@ GO
 -- ============================================================
 -- 3. TABLA: Predio
 -- ============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ConfiguracionGeneral' AND xtype='U')
+CREATE TABLE ConfiguracionGeneral (
+    id_configuracion                 INT IDENTITY(1,1) PRIMARY KEY,
+    frecuencia_actualizacion_min     INT             NOT NULL DEFAULT 10,
+    notificaciones_email             BIT             NOT NULL DEFAULT 1,
+    email_notificaciones             VARCHAR(100)    NOT NULL DEFAULT 'admin@agroriego.com',
+    nombre_cliente                   VARCHAR(150)    NOT NULL DEFAULT 'AgroRiego Mexico S.A. de C.V.',
+    rfc                              VARCHAR(13)     NULL,
+    email_contacto                   VARCHAR(100)    NULL,
+    actualizado_en                   DATETIME        NOT NULL DEFAULT GETDATE()
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM ConfiguracionGeneral)
+INSERT INTO ConfiguracionGeneral (
+    frecuencia_actualizacion_min,
+    notificaciones_email,
+    email_notificaciones,
+    nombre_cliente,
+    rfc,
+    email_contacto
+) VALUES (
+    10,
+    1,
+    'admin@agroriego.com',
+    'AgroRiego Mexico S.A. de C.V.',
+    'ARM123456ABC',
+    'contacto@agroriego.com'
+);
+GO
+
+-- ============================================================
+-- 4. TABLA: Predio
+-- ============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Predio' AND xtype='U')
 CREATE TABLE Predio (
                         id_predio   INT IDENTITY(1,1) PRIMARY KEY,
@@ -154,6 +188,25 @@ GO
 -- ============================================================
 -- 6. TABLA: Alerta
 -- ============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ConsumoAgua' AND xtype='U')
+CREATE TABLE ConsumoAgua (
+                            id_consumo           BIGINT IDENTITY(1,1) PRIMARY KEY,
+                            id_area              VARCHAR(50)     NOT NULL,
+                            fecha_hora           DATETIME        NOT NULL,
+                            consumo_m3           DECIMAL(10, 2)  NOT NULL,
+                            CONSTRAINT fk_consumo_area FOREIGN KEY (id_area)
+                                REFERENCES AreaRiego(id_area) ON DELETE CASCADE
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_consumo_fecha')
+CREATE NONCLUSTERED INDEX idx_consumo_fecha
+ON ConsumoAgua (fecha_hora, id_area);
+GO
+
+-- ============================================================
+-- 7. TABLA: Alerta
+-- ============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Alerta' AND xtype='U')
 CREATE TABLE Alerta (
                         id_alerta           BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -176,7 +229,7 @@ CREATE TABLE Alerta (
 GO
 
 -- ============================================================
--- 7. TABLA: Auditoria
+-- 8. TABLA: Auditoria
 -- ============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Auditoria' AND xtype='U')
 CREATE TABLE Auditoria (
@@ -304,6 +357,7 @@ SELECT 'PerfilCliente'     AS Tabla, COUNT(*) AS Registros FROM PerfilCliente   
 SELECT 'Predio'            AS Tabla, COUNT(*) AS Registros FROM Predio               UNION ALL
 SELECT 'AreaRiego'         AS Tabla, COUNT(*) AS Registros FROM AreaRiego            UNION ALL
 SELECT 'LecturaTelemetria' AS Tabla, COUNT(*) AS Registros FROM LecturaTelemetria    UNION ALL
+SELECT 'ConsumoAgua'       AS Tabla, COUNT(*) AS Registros FROM ConsumoAgua          UNION ALL
 SELECT 'Alerta'            AS Tabla, COUNT(*) AS Registros FROM Alerta               UNION ALL
 SELECT 'Auditoria'         AS Tabla, COUNT(*) AS Registros FROM Auditoria;
 GO
