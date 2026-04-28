@@ -5,9 +5,6 @@ const { getPool } = require('./db'); // Importamos la conexión que arreglamos
 
 const app = express();
 
-<<<<<<< Updated upstream
-app.use(cors());
-=======
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173')
     .split(',').map(o => o.trim());
 
@@ -20,7 +17,6 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
->>>>>>> Stashed changes
 app.use(express.json());
 
 // Ruta de prueba rápida

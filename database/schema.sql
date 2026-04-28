@@ -276,11 +276,7 @@ CREATE NONCLUSTERED INDEX idx_consumo_fecha
 ON ConsumoAgua (fecha_hora, id_area);
 GO
 
-<<<<<<< Updated upstream
-=======
 -- (ConsumoAgua se llena en la sección DATOS DE PRUEBA, después de AreaRiego)
-
->>>>>>> Stashed changes
 -- ============================================================
 -- 7. TABLA: Alerta
 -- ============================================================
