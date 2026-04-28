@@ -93,16 +93,23 @@ router.get('/resumen', verificarToken, async (req, res) => {
         };
 
         const consumoTotalHoy = Number(consumoTotalResult.recordset[0]?.consumo_total_hoy || 0);
+        const consumoPorHoraMap = new Map(
+            consumoHoraResult.recordset.map((row) => [row.time, Number(row.consumo || 0)])
+        );
+        const consumoPorHoraCompleto = Array.from({ length: 24 }, (_, hour) => {
+            const time = `${String(hour).padStart(2, '0')}:00`;
+            return {
+                time,
+                consumo: consumoPorHoraMap.get(time) ?? 0,
+            };
+        });
 
         res.json({
             temperatura_actual: Number(resumen.temperatura_actual || 0),
             consumo_total_hoy: consumoTotalHoy,
             fuente_consumo: usarConsumoAgua ? 'ConsumoAgua' : 'LecturaTelemetria',
             fecha_consumo: fechaConsumo,
-            consumo_por_hora: consumoHoraResult.recordset.map((row) => ({
-                time: row.time,
-                consumo: Number(row.consumo || 0),
-            })),
+            consumo_por_hora: consumoPorHoraCompleto,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

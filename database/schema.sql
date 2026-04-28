@@ -94,22 +94,47 @@ CREATE TABLE ConfiguracionGeneral (
 );
 GO
 
+-- Los valores iniciales se toman de Usuario (Administrador Sistema) y PerfilCliente.
+-- Si aún no existen registros, caen a los valores por defecto.
 IF NOT EXISTS (SELECT 1 FROM ConfiguracionGeneral)
-INSERT INTO ConfiguracionGeneral (
-    frecuencia_actualizacion_min,
-    notificaciones_email,
-    email_notificaciones,
-    nombre_cliente,
-    rfc,
-    email_contacto
-) VALUES (
-    10,
-    1,
-    'admin@agroriego.com',
-    'AgroRiego Mexico S.A. de C.V.',
-    'ARM123456ABC',
-    'contacto@agroriego.com'
-);
+BEGIN
+    DECLARE @adminEmail       VARCHAR(100);
+    DECLARE @nombreCliente    VARCHAR(150);
+    DECLARE @rfcCliente       VARCHAR(13);
+    DECLARE @emailContacto    VARCHAR(100);
+
+    -- Email del primer Administrador Sistema
+    SELECT TOP 1 @adminEmail = u.email
+    FROM Usuario u
+    WHERE u.rol = 'Administrador Sistema'
+    ORDER BY u.id_usuario ASC;
+
+    -- Datos de empresa del PerfilCliente asociado a ese admin
+    SELECT TOP 1
+        @nombreCliente = pc.nombre_cliente_empresa,
+        @rfcCliente    = pc.rfc,
+        @emailContacto = pc.email_contacto
+    FROM PerfilCliente pc
+    INNER JOIN Usuario u ON u.id_usuario = pc.id_usuario
+    WHERE u.rol = 'Administrador Sistema'
+    ORDER BY u.id_usuario ASC;
+
+    INSERT INTO ConfiguracionGeneral (
+        frecuencia_actualizacion_min,
+        notificaciones_email,
+        email_notificaciones,
+        nombre_cliente,
+        rfc,
+        email_contacto
+    ) VALUES (
+        10,
+        1,
+        ISNULL(@adminEmail,    'admin@agroriego.com'),
+        ISNULL(@nombreCliente, 'AgroRiego Mexico S.A. de C.V.'),
+        ISNULL(@rfcCliente,    'ARM123456ABC'),
+        ISNULL(@emailContacto, ISNULL(@adminEmail, 'contacto@agroriego.com'))
+    );
+END
 GO
 
 -- ============================================================
@@ -204,19 +229,86 @@ CREATE NONCLUSTERED INDEX idx_consumo_fecha
 ON ConsumoAgua (fecha_hora, id_area);
 GO
 
--- Datos de consumo de agua para evitar que la tabla quede vacía
-IF NOT EXISTS (SELECT TOP 1 * FROM ConsumoAgua)
+-- Historial de consumo de agua: 7 días x 5 áreas (registros cada ~12h)
+DELETE FROM ConsumoAgua
+WHERE id_area IN ('AR-001', 'AR-002', 'AR-003', 'AR-004', 'AR-005');
+
 INSERT INTO ConsumoAgua (id_area, fecha_hora, consumo_m3) VALUES
-    ('AR-001', DATEADD(HOUR,   -5, GETDATE()), 2.40),
-    ('AR-001', DATEADD(HOUR,   -4, GETDATE()), 2.15),
-    ('AR-002', DATEADD(HOUR,   -5, GETDATE()), 1.80),
-    ('AR-002', DATEADD(HOUR,   -3, GETDATE()), 1.95),
-    ('AR-003', DATEADD(HOUR,   -4, GETDATE()), 1.25),
-    ('AR-003', DATEADD(HOUR,   -2, GETDATE()), 1.40),
-    ('AR-004', DATEADD(HOUR,   -6, GETDATE()), 3.10),
-    ('AR-004', DATEADD(HOUR,   -1, GETDATE()), 2.85),
-    ('AR-005', DATEADD(HOUR,   -5, GETDATE()), 0.95),
-    ('AR-005', DATEADD(HOUR,   -1, GETDATE()), 1.05);
+    -- AR-001 (Nogal) — consumo alto, con picos y caídas marcadas
+    ('AR-001', DATEADD(HOUR, -168, GETDATE()), 1.85),
+    ('AR-001', DATEADD(HOUR, -156, GETDATE()), 2.90),
+    ('AR-001', DATEADD(HOUR, -144, GETDATE()), 2.05),
+    ('AR-001', DATEADD(HOUR, -132, GETDATE()), 3.35),
+    ('AR-001', DATEADD(HOUR, -120, GETDATE()), 1.78),
+    ('AR-001', DATEADD(HOUR, -108, GETDATE()), 2.62),
+    ('AR-001', DATEADD(HOUR,  -96, GETDATE()), 2.18),
+    ('AR-001', DATEADD(HOUR,  -84, GETDATE()), 3.10),
+    ('AR-001', DATEADD(HOUR,  -72, GETDATE()), 1.92),
+    ('AR-001', DATEADD(HOUR,  -60, GETDATE()), 2.74),
+    ('AR-001', DATEADD(HOUR,  -48, GETDATE()), 2.11),
+    ('AR-001', DATEADD(HOUR,  -36, GETDATE()), 3.48),
+    ('AR-001', DATEADD(HOUR,  -24, GETDATE()), 2.06),
+    ('AR-001', DATEADD(HOUR,  -12, GETDATE()), 2.88),
+    -- AR-002 (Manzana) — consumo medio, variación irregular
+    ('AR-002', DATEADD(HOUR, -168, GETDATE()), 1.35),
+    ('AR-002', DATEADD(HOUR, -156, GETDATE()), 2.10),
+    ('AR-002', DATEADD(HOUR, -144, GETDATE()), 1.42),
+    ('AR-002', DATEADD(HOUR, -132, GETDATE()), 2.32),
+    ('AR-002', DATEADD(HOUR, -120, GETDATE()), 1.56),
+    ('AR-002', DATEADD(HOUR, -108, GETDATE()), 1.98),
+    ('AR-002', DATEADD(HOUR,  -96, GETDATE()), 1.47),
+    ('AR-002', DATEADD(HOUR,  -84, GETDATE()), 2.26),
+    ('AR-002', DATEADD(HOUR,  -72, GETDATE()), 1.33),
+    ('AR-002', DATEADD(HOUR,  -60, GETDATE()), 2.04),
+    ('AR-002', DATEADD(HOUR,  -48, GETDATE()), 1.58),
+    ('AR-002', DATEADD(HOUR,  -36, GETDATE()), 2.41),
+    ('AR-002', DATEADD(HOUR,  -24, GETDATE()), 1.44),
+    ('AR-002', DATEADD(HOUR,  -12, GETDATE()), 1.89),
+    -- AR-003 (Alfalfa) — consumo bajo-medio, con oscilaciones
+    ('AR-003', DATEADD(HOUR, -168, GETDATE()), 0.82),
+    ('AR-003', DATEADD(HOUR, -156, GETDATE()), 1.58),
+    ('AR-003', DATEADD(HOUR, -144, GETDATE()), 0.94),
+    ('AR-003', DATEADD(HOUR, -132, GETDATE()), 1.76),
+    ('AR-003', DATEADD(HOUR, -120, GETDATE()), 1.01),
+    ('AR-003', DATEADD(HOUR, -108, GETDATE()), 1.44),
+    ('AR-003', DATEADD(HOUR,  -96, GETDATE()), 0.88),
+    ('AR-003', DATEADD(HOUR,  -84, GETDATE()), 1.62),
+    ('AR-003', DATEADD(HOUR,  -72, GETDATE()), 0.79),
+    ('AR-003', DATEADD(HOUR,  -60, GETDATE()), 1.39),
+    ('AR-003', DATEADD(HOUR,  -48, GETDATE()), 0.91),
+    ('AR-003', DATEADD(HOUR,  -36, GETDATE()), 1.71),
+    ('AR-003', DATEADD(HOUR,  -24, GETDATE()), 0.86),
+    ('AR-003', DATEADD(HOUR,  -12, GETDATE()), 1.53),
+    -- AR-004 (Maíz) — consumo alto, comportamiento muy variable
+    ('AR-004', DATEADD(HOUR, -168, GETDATE()), 2.35),
+    ('AR-004', DATEADD(HOUR, -156, GETDATE()), 3.92),
+    ('AR-004', DATEADD(HOUR, -144, GETDATE()), 2.48),
+    ('AR-004', DATEADD(HOUR, -132, GETDATE()), 4.25),
+    ('AR-004', DATEADD(HOUR, -120, GETDATE()), 2.66),
+    ('AR-004', DATEADD(HOUR, -108, GETDATE()), 3.58),
+    ('AR-004', DATEADD(HOUR,  -96, GETDATE()), 2.74),
+    ('AR-004', DATEADD(HOUR,  -84, GETDATE()), 4.12),
+    ('AR-004', DATEADD(HOUR,  -72, GETDATE()), 2.21),
+    ('AR-004', DATEADD(HOUR,  -60, GETDATE()), 3.84),
+    ('AR-004', DATEADD(HOUR,  -48, GETDATE()), 2.57),
+    ('AR-004', DATEADD(HOUR,  -36, GETDATE()), 4.38),
+    ('AR-004', DATEADD(HOUR,  -24, GETDATE()), 2.69),
+    ('AR-004', DATEADD(HOUR,  -12, GETDATE()), 3.73),
+    -- AR-005 (Chile) — consumo bajo, irregular por riegos cortos
+    ('AR-005', DATEADD(HOUR, -168, GETDATE()), 0.42),
+    ('AR-005', DATEADD(HOUR, -156, GETDATE()), 1.18),
+    ('AR-005', DATEADD(HOUR, -144, GETDATE()), 0.55),
+    ('AR-005', DATEADD(HOUR, -132, GETDATE()), 1.26),
+    ('AR-005', DATEADD(HOUR, -120, GETDATE()), 0.49),
+    ('AR-005', DATEADD(HOUR, -108, GETDATE()), 1.04),
+    ('AR-005', DATEADD(HOUR,  -96, GETDATE()), 0.46),
+    ('AR-005', DATEADD(HOUR,  -84, GETDATE()), 1.31),
+    ('AR-005', DATEADD(HOUR,  -72, GETDATE()), 0.39),
+    ('AR-005', DATEADD(HOUR,  -60, GETDATE()), 1.12),
+    ('AR-005', DATEADD(HOUR,  -48, GETDATE()), 0.53),
+    ('AR-005', DATEADD(HOUR,  -36, GETDATE()), 1.28),
+    ('AR-005', DATEADD(HOUR,  -24, GETDATE()), 0.44),
+    ('AR-005', DATEADD(HOUR,  -12, GETDATE()), 1.07);
 GO
 
 -- ============================================================
@@ -298,6 +390,41 @@ SET password_hash = '$2b$10$pUvqRb46l1kaqqqaMS/XLewYCyGMMJLfITHFmIfAluiA8WcqrZ40
     activo = 1
 WHERE email = 'operador@agroriego.mx'
   AND (password_hash NOT LIKE '$2%' OR activo <> 1 OR rol <> 'Operador Campo');
+GO
+
+-- PerfilCliente: perfil de empresa del Administrador de Predio
+IF NOT EXISTS (
+    SELECT 1 FROM PerfilCliente pc
+    INNER JOIN Usuario u ON u.id_usuario = pc.id_usuario
+    WHERE u.email = 'predio@agroriego.mx'
+)
+BEGIN
+    DECLARE @idPredio INT;
+    SELECT @idPredio = id_usuario FROM Usuario WHERE email = 'predio@agroriego.mx';
+
+    IF @idPredio IS NOT NULL
+        INSERT INTO PerfilCliente (id_usuario, nombre_cliente_empresa, rfc, email_contacto)
+        VALUES (@idPredio, 'Rancho García S.A. de C.V.', 'RGA850312ABC', 'predio@agroriego.mx');
+END
+GO
+
+-- Sincronizar ConfiguracionGeneral con PerfilCliente si ya existe pero tiene valores por defecto
+UPDATE cg
+SET
+    cg.nombre_cliente    = pc.nombre_cliente_empresa,
+    cg.rfc               = pc.rfc,
+    cg.email_contacto    = ISNULL(pc.email_contacto, cg.email_contacto),
+    cg.actualizado_en    = GETDATE()
+FROM ConfiguracionGeneral cg
+CROSS JOIN (
+    SELECT TOP 1 pc.nombre_cliente_empresa, pc.rfc, pc.email_contacto
+    FROM PerfilCliente pc
+    INNER JOIN Usuario u ON u.id_usuario = pc.id_usuario
+    WHERE u.rol = 'Administrador Sistema'
+       OR u.rol = 'Administrador Predio'
+    ORDER BY u.rol ASC   -- Administrador Sistema primero alfabéticamente
+) pc
+WHERE cg.nombre_cliente = 'AgroRiego Mexico S.A. de C.V.';
 GO
 
 -- Predios

@@ -1,5 +1,5 @@
 const sql = require('mssql'); // <--- Solo UNA vez aquí arriba
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 function getRequiredEnv(name) {
     const value = process.env[name];
@@ -9,16 +9,36 @@ function getRequiredEnv(name) {
     return value;
 }
 
+// Parsear .\SQLEXPRESS → server=localhost, instanceName=SQLEXPRESS
+const rawServer = getRequiredEnv('DB_SERVER');
+const [serverHostRaw, instanceName] = rawServer.includes('\\')
+    ? rawServer.split('\\', 2)
+    : [rawServer, undefined];
+const serverHost = (serverHostRaw === '.' || serverHostRaw === '(local)')
+    ? 'localhost'
+    : serverHostRaw;
+
+const isLocalServer = ['localhost', '127.0.0.1'].includes((serverHost || '').toLowerCase());
+const dbPort = Number(process.env.DB_PORT || 1433);
+
 const config = {
-    user: getRequiredEnv('DB_USER'),
+    user:     getRequiredEnv('DB_USER'),
     password: getRequiredEnv('DB_PASSWORD'),
-    server: getRequiredEnv('DB_SERVER'),
+    server:   serverHost,
     database: getRequiredEnv('DB_DATABASE'),
-    port: Number(process.env.DB_PORT || 1433),
+    connectionTimeout: Number(process.env.DB_CONNECTION_TIMEOUT || 60000),
+    requestTimeout:    Number(process.env.DB_REQUEST_TIMEOUT    || 60000),
+    // Al usar instanceName, mssql descubre el puerto vía SQL Browser (no se pasa port)
+    ...(instanceName ? {} : { port: dbPort }),
     options: {
-        encrypt: false, 
-        trustServerCertificate: true 
-    }
+        ...(instanceName ? { instanceName } : {}),
+        encrypt: process.env.DB_ENCRYPT
+            ? process.env.DB_ENCRYPT === 'true'
+            : !isLocalServer,
+        trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE
+            ? process.env.DB_TRUST_SERVER_CERTIFICATE === 'true'
+            : isLocalServer,
+    },
 };
 
 let pool;
