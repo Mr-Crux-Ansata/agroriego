@@ -12,13 +12,22 @@ router.get('/resumen', verificarToken, async (req, res) => {
         const existeConsumoAgua = Number(tableCheck.recordset[0]?.existe || 0) === 1;
 
         let usarConsumoAgua = false;
+        let fechaConsumo = null;
         if (existeConsumoAgua) {
-            const consumoHoyCheck = await pool.request().query(`
-                SELECT COUNT(1) AS total
-                FROM ConsumoAgua
-                WHERE CAST(fecha_hora AS DATE) = CAST(GETDATE() AS DATE);
+            const consumoFechaCheck = await pool.request().query(`
+                SELECT MAX(CAST(fecha_hora AS DATE)) AS fecha
+                FROM ConsumoAgua;
             `);
-            usarConsumoAgua = Number(consumoHoyCheck.recordset[0]?.total || 0) > 0;
+            fechaConsumo = consumoFechaCheck.recordset[0]?.fecha || null;
+            usarConsumoAgua = Boolean(fechaConsumo);
+        }
+
+        if (!usarConsumoAgua) {
+            const telemetriaFechaCheck = await pool.request().query(`
+                SELECT MAX(CAST(fecha_hora AS DATE)) AS fecha
+                FROM LecturaTelemetria;
+            `);
+            fechaConsumo = telemetriaFechaCheck.recordset[0]?.fecha || null;
         }
 
         const resumenResult = await pool.request().query(`
@@ -42,7 +51,7 @@ router.get('/resumen', verificarToken, async (req, res) => {
             ? `
                 SELECT CAST(ISNULL(SUM(consumo_m3), 0) AS DECIMAL(10,2)) AS consumo_total_hoy
                 FROM ConsumoAgua
-                WHERE CAST(fecha_hora AS DATE) = CAST(GETDATE() AS DATE);
+                WHERE CAST(fecha_hora AS DATE) = @fecha_consumo;
             `
             : `
                 SELECT CAST(ISNULL(SUM(CASE
@@ -50,7 +59,7 @@ router.get('/resumen', verificarToken, async (req, res) => {
                     ELSE 0
                 END), 0) AS DECIMAL(10,2)) AS consumo_total_hoy
                 FROM LecturaTelemetria
-                WHERE CAST(fecha_hora AS DATE) = CAST(GETDATE() AS DATE);
+                WHERE CAST(fecha_hora AS DATE) = @fecha_consumo;
             `;
 
         const consumoHoraQuery = usarConsumoAgua
@@ -59,7 +68,7 @@ router.get('/resumen', verificarToken, async (req, res) => {
                     RIGHT('0' + CAST(DATEPART(HOUR, fecha_hora) AS VARCHAR(2)), 2) + ':00' AS time,
                     CAST(ISNULL(SUM(consumo_m3), 0) AS DECIMAL(10,2)) AS consumo
                 FROM ConsumoAgua
-                WHERE CAST(fecha_hora AS DATE) = CAST(GETDATE() AS DATE)
+                WHERE CAST(fecha_hora AS DATE) = @fecha_consumo
                 GROUP BY DATEPART(HOUR, fecha_hora)
                 ORDER BY DATEPART(HOUR, fecha_hora);
             `
@@ -68,14 +77,14 @@ router.get('/resumen', verificarToken, async (req, res) => {
                     RIGHT('0' + CAST(DATEPART(HOUR, fecha_hora) AS VARCHAR(2)), 2) + ':00' AS time,
                     CAST(ISNULL(SUM(CASE WHEN estatus_riego = 1 THEN flujo_riego ELSE 0 END), 0) AS DECIMAL(10,2)) AS consumo
                 FROM LecturaTelemetria
-                WHERE CAST(fecha_hora AS DATE) = CAST(GETDATE() AS DATE)
+                WHERE CAST(fecha_hora AS DATE) = @fecha_consumo
                 GROUP BY DATEPART(HOUR, fecha_hora)
                 ORDER BY DATEPART(HOUR, fecha_hora);
             `;
 
         const [consumoTotalResult, consumoHoraResult] = await Promise.all([
-            pool.request().query(consumoTotalQuery),
-            pool.request().query(consumoHoraQuery),
+            pool.request().input('fecha_consumo', fechaConsumo).query(consumoTotalQuery),
+            pool.request().input('fecha_consumo', fechaConsumo).query(consumoHoraQuery),
         ]);
 
         const resumen = resumenResult.recordset[0] || {
@@ -89,6 +98,7 @@ router.get('/resumen', verificarToken, async (req, res) => {
             temperatura_actual: Number(resumen.temperatura_actual || 0),
             consumo_total_hoy: consumoTotalHoy,
             fuente_consumo: usarConsumoAgua ? 'ConsumoAgua' : 'LecturaTelemetria',
+            fecha_consumo: fechaConsumo,
             consumo_por_hora: consumoHoraResult.recordset.map((row) => ({
                 time: row.time,
                 consumo: Number(row.consumo || 0),
