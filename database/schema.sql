@@ -204,6 +204,21 @@ CREATE NONCLUSTERED INDEX idx_consumo_fecha
 ON ConsumoAgua (fecha_hora, id_area);
 GO
 
+-- Datos de consumo de agua para evitar que la tabla quede vacía
+IF NOT EXISTS (SELECT TOP 1 * FROM ConsumoAgua)
+INSERT INTO ConsumoAgua (id_area, fecha_hora, consumo_m3) VALUES
+    ('AR-001', DATEADD(HOUR,   -5, GETDATE()), 2.40),
+    ('AR-001', DATEADD(HOUR,   -4, GETDATE()), 2.15),
+    ('AR-002', DATEADD(HOUR,   -5, GETDATE()), 1.80),
+    ('AR-002', DATEADD(HOUR,   -3, GETDATE()), 1.95),
+    ('AR-003', DATEADD(HOUR,   -4, GETDATE()), 1.25),
+    ('AR-003', DATEADD(HOUR,   -2, GETDATE()), 1.40),
+    ('AR-004', DATEADD(HOUR,   -6, GETDATE()), 3.10),
+    ('AR-004', DATEADD(HOUR,   -1, GETDATE()), 2.85),
+    ('AR-005', DATEADD(HOUR,   -5, GETDATE()), 0.95),
+    ('AR-005', DATEADD(HOUR,   -1, GETDATE()), 1.05);
+GO
+
 -- ============================================================
 -- 7. TABLA: Alerta
 -- ============================================================
