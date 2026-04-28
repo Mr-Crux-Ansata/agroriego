@@ -12,7 +12,8 @@ const transporter = nodemailer.createTransport({
 
 async function enviarCorreo(destino, token) {
     try {
-        const link = `http://localhost:3000/activar?token=${token}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const link = `${frontendUrl}/activar?token=${token}`;
 
         const info = await transporter.sendMail({
             from: `"AgroRiego" <${process.env.EMAIL_USER}>`,

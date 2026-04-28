@@ -201,8 +201,9 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
         {usuarios.map(usuario => {
           const config = getRoleConfig(usuario.rol);
           const Icon = config.icon;
+          const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:3001';
           const fotoSrc = usuario.foto_perfil_url
-            ? `http://localhost:3001${usuario.foto_perfil_url}`
+            ? `${API_ORIGIN}${usuario.foto_perfil_url}`
             : null;
 
           return (

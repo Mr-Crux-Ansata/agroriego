@@ -1,6 +1,4 @@
-const BASE = 'http://localhost:3001/api';
-
-console.log("🚨 ESTE ES EL API CORRECTO");
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // ---------------------
 // TOKEN

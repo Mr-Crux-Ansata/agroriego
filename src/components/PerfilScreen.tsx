@@ -104,7 +104,8 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
     }
   };
 
-  const fotoSrc = fotoPerfilUrl ? `http://localhost:3001${fotoPerfilUrl}` : '';
+  const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:3001';
+  const fotoSrc = fotoPerfilUrl ? `${API_ORIGIN}${fotoPerfilUrl}` : '';
 
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
