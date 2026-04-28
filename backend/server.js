@@ -1,74 +1,45 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
-const { getPool } = require('./db');
+require('dotenv').config({ override: true });
+const { getPool } = require('./db'); // Importamos la conexión que arreglamos
 
 const app = express();
 
-app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173'],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 app.use(express.json());
 
-// LOGGING MIDDLEWARE
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
-    next();
-});
-app.use(express.urlencoded({ extended: true }));
-app.use(express.text({ type: 'text/*' }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// TEST
+// Ruta de prueba rápida
 app.get('/test', (req, res) => {
-    res.send('Backend funcionando');
+    res.send('¡El backend está vivo y el puerto funciona!');
 });
 
-app.get('/tes', (req, res) => {
-    res.send('Backend funcionando (ruta alias /tes)');
-});
+// Descomentamos las rutas para que la API funcione
+app.use('/api/auth',       require('./routes/auth'));
+app.use('/api/predios',    require('./routes/predios'));
+app.use('/api/areas',      require('./routes/areas'));
+app.use('/api/alertas',    require('./routes/alertas'));
+app.use('/api/usuarios',   require('./routes/usuarios'));
+app.use('/api/telemetria', require('./routes/telemetria'));
 
-// RUTAS (UNA SOLA VEZ)
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/usuarios', require('./routes/usuarios'));
-app.use('/api/predios', require('./routes/predios'));
-app.use('/api/areas', require('./routes/areas'));
-app.use('/api/alertas', require('./routes/alertas'));
-app.use('/api/reportes', require('./routes/reportes'));
-app.use('/api/configuracion', require('./routes/configuracion'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-
-// ERROR DE PARSEO JSON / BODY
-app.use((err, req, res, next) => {
-    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-        console.error('❌ JSON malformado recibido:', err.message);
-        return res.status(400).json({ error: 'JSON malformado en el cuerpo de la petición' });
-    }
-    next(err);
-});
-
-// PUERTO
+// Encendemos el servidor e intentamos conectar a SQL de inmediato
 const PORT = process.env.PORT || 3001;
 
-const server = app.listen(PORT, () => {
-    console.log(`✅ Servidor corriendo en el puerto: ${PORT}`);
-    console.log('⚡ Servidor listo para recibir peticiones');
+const server = app.listen(PORT, async () => {
+    console.log(`✅ Servidor corriendo en el puerto:${PORT}`);
+    
+    try {
+        // Forzamos la conexión a SQL Server al arrancar
+        await getPool();
+    } catch (error) {
+        console.error('❌ La base de datos no respondió al arrancar el servidor.');
+    }
 });
 
 server.on('error', (error) => {
-    console.error('❌ Error en el servidor:', error.message);
-    process.exit(1);
-});
-
-(async () => {
-    try {
-        await getPool();
-        console.log('✅ DB conectada');
-    } catch (error) {
-        console.error('❌ Error DB:', error.message);
-        console.log('⚠️ El servidor sigue escuchando aunque la conexión a la DB falló.');
+    if (error.code === 'EADDRINUSE') {
+        console.error(`❌ El puerto ${PORT} ya está en uso. Cierra el proceso que lo ocupa e intenta de nuevo.`);
+        return;
     }
-})();
+
+    console.error('❌ Error al iniciar el servidor:', error.message);
+});

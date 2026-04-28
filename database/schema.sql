@@ -58,6 +58,9 @@ GO
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'foto_perfil_url')
     ALTER TABLE Usuario ADD foto_perfil_url VARCHAR(255) NULL;
 GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuario') AND name = 'activo')
+    ALTER TABLE Usuario ADD activo BIT NOT NULL DEFAULT 0;
+GO
 
 IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PerfilCliente') AND name = 'telefono_contacto')
     ALTER TABLE PerfilCliente DROP COLUMN telefono_contacto;

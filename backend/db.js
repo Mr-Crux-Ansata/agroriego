@@ -1,15 +1,33 @@
 const sql = require('mssql'); // <--- Solo UNA vez aquí arriba
-require('dotenv').config();
+require('dotenv').config({ override: true });
+
+const rawServer = process.env.DB_SERVER || 'localhost';
+const [serverHostRaw, instanceName] = rawServer.includes('\\')
+    ? rawServer.split('\\', 2)
+    : [rawServer, undefined];
+
+const serverHost = serverHostRaw === '.' ? 'localhost' : serverHostRaw;
+const isLocalServer = ['localhost', '127.0.0.1', '(local)'].includes((serverHost || '').toLowerCase());
+const dbPort = Number(process.env.DB_PORT || 1433);
+const connectionTimeout = Number(process.env.DB_CONNECTION_TIMEOUT || 60000);
+const requestTimeout = Number(process.env.DB_REQUEST_TIMEOUT || 60000);
 
 const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
+    server: serverHost,
     database: process.env.DB_DATABASE,
-    port: 1433,
+    connectionTimeout,
+    requestTimeout,
+    ...(instanceName ? {} : { port: dbPort }),
     options: {
-        encrypt: false, 
-        trustServerCertificate: true 
+        ...(instanceName ? { instanceName } : {}),
+        encrypt: process.env.DB_ENCRYPT
+            ? process.env.DB_ENCRYPT === 'true'
+            : !isLocalServer,
+        trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE
+            ? process.env.DB_TRUST_SERVER_CERTIFICATE === 'true'
+            : isLocalServer
     }
 };
 
