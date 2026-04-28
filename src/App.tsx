@@ -45,29 +45,10 @@ export default function App() {
   const isActivating = activationToken !== null;
 
   useEffect(() => {
-    const restoreSession = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const user = await api.getCurrentUser();
-
-      if (!user) {
-        api.logout();
-        setSessionUser(null);
-        setIsLoggedIn(false);
-        return;
-      }
-
-      setSessionUser(user);
-      setUserRole(
-        user.rol === 'Administrador Sistema' || user.rol === 'Administrador Predio'
-          ? 'admin'
-          : 'user'
-      );
-      setIsLoggedIn(true);
-    };
-
-    restoreSession();
+    // Evita auto-login por sesiones/caché previos al abrir la aplicación.
+    api.logout();
+    setSessionUser(null);
+    setIsLoggedIn(false);
   }, []);
 
   const handleLogin = (user: any) => {
