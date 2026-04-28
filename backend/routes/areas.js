@@ -50,7 +50,18 @@ router.get('/:id/telemetria', verificarToken, async (req, res) => {
 
 router.put('/:id/config', verificarToken, async (req, res) => {
     const { capacidad_campo, punto_marchitez, estatus_activo,
-        nombre, tipo_cultivo, tipo_tierra, tamano_hectareas } = req.body;
+        nombre, tipo_cultivo, tipo_tierra, tamano_hectareas,
+        umbral_humedad_min, umbral_humedad_max,
+        umbral_temp_suelo_min, umbral_temp_suelo_max,
+        umbral_ce_min, umbral_ce_max,
+        umbral_potencial_min, umbral_potencial_max,
+        umbral_et_min, umbral_et_max,
+        umbral_temp_amb_min, umbral_temp_amb_max,
+        umbral_hr_min, umbral_hr_max,
+        umbral_viento_min, umbral_viento_max,
+        umbral_ndvi_min, umbral_ndvi_max,
+        umbral_flujo_min, umbral_flujo_max,
+        umbral_radiacion_min, umbral_radiacion_max } = req.body;
     try {
         const pool = await getPool();
         await pool.request()
@@ -62,6 +73,28 @@ router.put('/:id/config', verificarToken, async (req, res) => {
             .input('cultivo', sql.VarChar, tipo_cultivo)
             .input('tierra', sql.VarChar, tipo_tierra)
             .input('tam', sql.Decimal(8, 2), tamano_hectareas)
+            .input('humMin', sql.Decimal(6, 2), umbral_humedad_min)
+            .input('humMax', sql.Decimal(6, 2), umbral_humedad_max)
+            .input('tsMin', sql.Decimal(6, 2), umbral_temp_suelo_min)
+            .input('tsMax', sql.Decimal(6, 2), umbral_temp_suelo_max)
+            .input('ceMin', sql.Decimal(8, 2), umbral_ce_min)
+            .input('ceMax', sql.Decimal(8, 2), umbral_ce_max)
+            .input('phMin', sql.Decimal(10, 2), umbral_potencial_min)
+            .input('phMax', sql.Decimal(10, 2), umbral_potencial_max)
+            .input('etMin', sql.Decimal(6, 2), umbral_et_min)
+            .input('etMax', sql.Decimal(6, 2), umbral_et_max)
+            .input('taMin', sql.Decimal(6, 2), umbral_temp_amb_min)
+            .input('taMax', sql.Decimal(6, 2), umbral_temp_amb_max)
+            .input('hrMin', sql.Decimal(6, 2), umbral_hr_min)
+            .input('hrMax', sql.Decimal(6, 2), umbral_hr_max)
+            .input('vMin', sql.Decimal(6, 2), umbral_viento_min)
+            .input('vMax', sql.Decimal(6, 2), umbral_viento_max)
+            .input('ndviMin', sql.Decimal(5, 3), umbral_ndvi_min)
+            .input('ndviMax', sql.Decimal(5, 3), umbral_ndvi_max)
+            .input('fMin', sql.Decimal(10, 2), umbral_flujo_min)
+            .input('fMax', sql.Decimal(10, 2), umbral_flujo_max)
+            .input('rMin', sql.Decimal(8, 2), umbral_radiacion_min)
+            .input('rMax', sql.Decimal(8, 2), umbral_radiacion_max)
             .query(`UPDATE AreaRiego
               SET capacidad_campo = @cap,
                   punto_marchitez = @mar,
@@ -69,7 +102,29 @@ router.put('/:id/config', verificarToken, async (req, res) => {
                   nombre          = @nombre,
                   tipo_cultivo    = @cultivo,
                   tipo_tierra     = @tierra,
-                  tamano_hectareas = @tam
+                  tamano_hectareas = @tam,
+                  umbral_humedad_min = @humMin,
+                  umbral_humedad_max = @humMax,
+                  umbral_temp_suelo_min = @tsMin,
+                  umbral_temp_suelo_max = @tsMax,
+                  umbral_ce_min = @ceMin,
+                  umbral_ce_max = @ceMax,
+                  umbral_potencial_min = @phMin,
+                  umbral_potencial_max = @phMax,
+                  umbral_et_min = @etMin,
+                  umbral_et_max = @etMax,
+                  umbral_temp_amb_min = @taMin,
+                  umbral_temp_amb_max = @taMax,
+                  umbral_hr_min = @hrMin,
+                  umbral_hr_max = @hrMax,
+                  umbral_viento_min = @vMin,
+                  umbral_viento_max = @vMax,
+                  umbral_ndvi_min = @ndviMin,
+                  umbral_ndvi_max = @ndviMax,
+                  umbral_flujo_min = @fMin,
+                  umbral_flujo_max = @fMax,
+                  umbral_radiacion_min = @rMin,
+                  umbral_radiacion_max = @rMax
               WHERE id_area = @id`);
 
         // Re-evalua la ultima lectura con los nuevos umbrales para reflejar alertas al instante.

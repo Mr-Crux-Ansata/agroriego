@@ -22,6 +22,28 @@ export function AreaConfigScreen({ area, userRole, onNavigate }: AreaConfigScree
     tamano_hectareas: area?.tamano_hectareas || 0,
     capacidad_campo: area?.capacidad_campo || 35,
     punto_marchitez: area?.punto_marchitez || 15,
+    umbral_humedad_min: area?.umbral_humedad_min ?? 10,
+    umbral_humedad_max: area?.umbral_humedad_max ?? 40,
+    umbral_temp_suelo_min: area?.umbral_temp_suelo_min ?? 10,
+    umbral_temp_suelo_max: area?.umbral_temp_suelo_max ?? 35,
+    umbral_ce_min: area?.umbral_ce_min ?? 0.2,
+    umbral_ce_max: area?.umbral_ce_max ?? 4.0,
+    umbral_potencial_min: area?.umbral_potencial_min ?? -1500,
+    umbral_potencial_max: area?.umbral_potencial_max ?? -10,
+    umbral_et_min: area?.umbral_et_min ?? 2,
+    umbral_et_max: area?.umbral_et_max ?? 8,
+    umbral_temp_amb_min: area?.umbral_temp_amb_min ?? 10,
+    umbral_temp_amb_max: area?.umbral_temp_amb_max ?? 40,
+    umbral_hr_min: area?.umbral_hr_min ?? 20,
+    umbral_hr_max: area?.umbral_hr_max ?? 90,
+    umbral_viento_min: area?.umbral_viento_min ?? 0,
+    umbral_viento_max: area?.umbral_viento_max ?? 10,
+    umbral_ndvi_min: area?.umbral_ndvi_min ?? 0.2,
+    umbral_ndvi_max: area?.umbral_ndvi_max ?? 0.9,
+    umbral_flujo_min: area?.umbral_flujo_min ?? 10,
+    umbral_flujo_max: area?.umbral_flujo_max ?? 1000,
+    umbral_radiacion_min: area?.umbral_radiacion_min ?? 100,
+    umbral_radiacion_max: area?.umbral_radiacion_max ?? 1000,
     estatus_activo: area?.estatus_activo === 1 || area?.estatus_activo === true,
   });
   const [guardado, setGuardado] = useState(false);
@@ -161,6 +183,34 @@ export function AreaConfigScreen({ area, userRole, onNavigate }: AreaConfigScree
                   <p className="text-xs mt-1">
                     El punto de marchitez debe ser menor que la capacidad de campo.
                   </p>
+                </div>
+              </Card>
+
+              <Card className="p-6 rounded-2xl shadow-sm space-y-4 md:col-span-2">
+                <h2 className="font-bold text-gray-800">Umbrales por Variable (Por Área)</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {field('umbral_humedad_min', 'Humedad mín (%)', 'number')}
+                  {field('umbral_humedad_max', 'Humedad máx (%)', 'number')}
+                  {field('umbral_temp_suelo_min', 'Temp suelo mín (°C)', 'number')}
+                  {field('umbral_temp_suelo_max', 'Temp suelo máx (°C)', 'number')}
+                  {field('umbral_ce_min', 'CE mín (dS/m)', 'number')}
+                  {field('umbral_ce_max', 'CE máx (dS/m)', 'number')}
+                  {field('umbral_potencial_min', 'Potencial hídrico mín (kPa)', 'number')}
+                  {field('umbral_potencial_max', 'Potencial hídrico máx (kPa)', 'number')}
+                  {field('umbral_et_min', 'ET mín (mm/día)', 'number')}
+                  {field('umbral_et_max', 'ET máx (mm/día)', 'number')}
+                  {field('umbral_temp_amb_min', 'Temp amb mín (°C)', 'number')}
+                  {field('umbral_temp_amb_max', 'Temp amb máx (°C)', 'number')}
+                  {field('umbral_hr_min', 'Humedad relativa mín (%)', 'number')}
+                  {field('umbral_hr_max', 'Humedad relativa máx (%)', 'number')}
+                  {field('umbral_viento_min', 'Viento mín (m/s)', 'number')}
+                  {field('umbral_viento_max', 'Viento máx (m/s)', 'number')}
+                  {field('umbral_ndvi_min', 'NDVI mín', 'number')}
+                  {field('umbral_ndvi_max', 'NDVI máx', 'number')}
+                  {field('umbral_flujo_min', 'Flujo mín', 'number')}
+                  {field('umbral_flujo_max', 'Flujo máx', 'number')}
+                  {field('umbral_radiacion_min', 'Radiación mín (W/m²)', 'number')}
+                  {field('umbral_radiacion_max', 'Radiación máx (W/m²)', 'number')}
                 </div>
               </Card>
             </div>

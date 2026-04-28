@@ -143,11 +143,80 @@ CREATE TABLE AreaRiego (
                            tamano_hectareas    DECIMAL(8, 2)   NOT NULL,
                            capacidad_campo     DECIMAL(5, 2)   NOT NULL, -- Umbral Máximo %
                            punto_marchitez     DECIMAL(5, 2)   NOT NULL, -- Umbral Mínimo %
+                           umbral_humedad_min  DECIMAL(6, 2)   NOT NULL DEFAULT 10,
+                           umbral_humedad_max  DECIMAL(6, 2)   NOT NULL DEFAULT 40,
+                           umbral_temp_suelo_min DECIMAL(6, 2) NOT NULL DEFAULT 10,
+                           umbral_temp_suelo_max DECIMAL(6, 2) NOT NULL DEFAULT 35,
+                           umbral_ce_min       DECIMAL(8, 2)   NOT NULL DEFAULT 0.20,
+                           umbral_ce_max       DECIMAL(8, 2)   NOT NULL DEFAULT 4.00,
+                           umbral_potencial_min DECIMAL(10, 2) NOT NULL DEFAULT -1500,
+                           umbral_potencial_max DECIMAL(10, 2) NOT NULL DEFAULT -10,
+                           umbral_et_min       DECIMAL(6, 2)   NOT NULL DEFAULT 2,
+                           umbral_et_max       DECIMAL(6, 2)   NOT NULL DEFAULT 8,
+                           umbral_temp_amb_min DECIMAL(6, 2)   NOT NULL DEFAULT 10,
+                           umbral_temp_amb_max DECIMAL(6, 2)   NOT NULL DEFAULT 40,
+                           umbral_hr_min       DECIMAL(6, 2)   NOT NULL DEFAULT 20,
+                           umbral_hr_max       DECIMAL(6, 2)   NOT NULL DEFAULT 90,
+                           umbral_viento_min   DECIMAL(6, 2)   NOT NULL DEFAULT 0,
+                           umbral_viento_max   DECIMAL(6, 2)   NOT NULL DEFAULT 10,
+                           umbral_ndvi_min     DECIMAL(5, 3)   NOT NULL DEFAULT 0.200,
+                           umbral_ndvi_max     DECIMAL(5, 3)   NOT NULL DEFAULT 0.900,
+                           umbral_flujo_min    DECIMAL(10, 2)  NOT NULL DEFAULT 10,
+                           umbral_flujo_max    DECIMAL(10, 2)  NOT NULL DEFAULT 1000,
+                           umbral_radiacion_min DECIMAL(8, 2)  NOT NULL DEFAULT 100,
+                           umbral_radiacion_max DECIMAL(8, 2)  NOT NULL DEFAULT 1000,
                            estatus_activo      BIT             DEFAULT 1, -- 1=Activa, 0=Inactiva
                            CONSTRAINT fk_area_predio FOREIGN KEY (id_predio)
                                REFERENCES Predio(id_predio) ON DELETE CASCADE,
                            CONSTRAINT chk_cultivo CHECK (tipo_cultivo IN ('Nogal', 'Manzana', 'Alfalfa', 'Maíz', 'Chile', 'Algodón'))
 );
+GO
+
+-- Compatibilidad para bases existentes: agregar umbrales por área si no existen.
+IF COL_LENGTH('AreaRiego', 'umbral_humedad_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_humedad_min DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_humedad_min DEFAULT 10;
+IF COL_LENGTH('AreaRiego', 'umbral_humedad_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_humedad_max DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_humedad_max DEFAULT 40;
+IF COL_LENGTH('AreaRiego', 'umbral_temp_suelo_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_temp_suelo_min DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_temp_suelo_min DEFAULT 10;
+IF COL_LENGTH('AreaRiego', 'umbral_temp_suelo_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_temp_suelo_max DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_temp_suelo_max DEFAULT 35;
+IF COL_LENGTH('AreaRiego', 'umbral_ce_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_ce_min DECIMAL(8, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_ce_min DEFAULT 0.20;
+IF COL_LENGTH('AreaRiego', 'umbral_ce_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_ce_max DECIMAL(8, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_ce_max DEFAULT 4.00;
+IF COL_LENGTH('AreaRiego', 'umbral_potencial_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_potencial_min DECIMAL(10, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_potencial_min DEFAULT -1500;
+IF COL_LENGTH('AreaRiego', 'umbral_potencial_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_potencial_max DECIMAL(10, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_potencial_max DEFAULT -10;
+IF COL_LENGTH('AreaRiego', 'umbral_et_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_et_min DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_et_min DEFAULT 2;
+IF COL_LENGTH('AreaRiego', 'umbral_et_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_et_max DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_et_max DEFAULT 8;
+IF COL_LENGTH('AreaRiego', 'umbral_temp_amb_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_temp_amb_min DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_temp_amb_min DEFAULT 10;
+IF COL_LENGTH('AreaRiego', 'umbral_temp_amb_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_temp_amb_max DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_temp_amb_max DEFAULT 40;
+IF COL_LENGTH('AreaRiego', 'umbral_hr_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_hr_min DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_hr_min DEFAULT 20;
+IF COL_LENGTH('AreaRiego', 'umbral_hr_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_hr_max DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_hr_max DEFAULT 90;
+IF COL_LENGTH('AreaRiego', 'umbral_viento_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_viento_min DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_viento_min DEFAULT 0;
+IF COL_LENGTH('AreaRiego', 'umbral_viento_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_viento_max DECIMAL(6, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_viento_max DEFAULT 10;
+IF COL_LENGTH('AreaRiego', 'umbral_ndvi_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_ndvi_min DECIMAL(5, 3) NOT NULL CONSTRAINT DF_AreaRiego_umbral_ndvi_min DEFAULT 0.200;
+IF COL_LENGTH('AreaRiego', 'umbral_ndvi_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_ndvi_max DECIMAL(5, 3) NOT NULL CONSTRAINT DF_AreaRiego_umbral_ndvi_max DEFAULT 0.900;
+IF COL_LENGTH('AreaRiego', 'umbral_flujo_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_flujo_min DECIMAL(10, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_flujo_min DEFAULT 10;
+IF COL_LENGTH('AreaRiego', 'umbral_flujo_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_flujo_max DECIMAL(10, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_flujo_max DEFAULT 1000;
+IF COL_LENGTH('AreaRiego', 'umbral_radiacion_min') IS NULL
+ALTER TABLE AreaRiego ADD umbral_radiacion_min DECIMAL(8, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_radiacion_min DEFAULT 100;
+IF COL_LENGTH('AreaRiego', 'umbral_radiacion_max') IS NULL
+ALTER TABLE AreaRiego ADD umbral_radiacion_max DECIMAL(8, 2) NOT NULL CONSTRAINT DF_AreaRiego_umbral_radiacion_max DEFAULT 1000;
 GO
 
 -- ============================================================
@@ -207,6 +276,11 @@ CREATE NONCLUSTERED INDEX idx_consumo_fecha
 ON ConsumoAgua (fecha_hora, id_area);
 GO
 
+<<<<<<< Updated upstream
+=======
+-- (ConsumoAgua se llena en la sección DATOS DE PRUEBA, después de AreaRiego)
+
+>>>>>>> Stashed changes
 -- ============================================================
 -- 7. TABLA: Alerta
 -- ============================================================
@@ -226,7 +300,6 @@ CREATE TABLE Alerta (
                             REFERENCES AreaRiego(id_area) ON DELETE CASCADE,
                         CONSTRAINT fk_alerta_lectura FOREIGN KEY (id_lectura)
                             REFERENCES LecturaTelemetria(id_lectura) ON DELETE NO ACTION,
-                        CONSTRAINT chk_tipo_alerta CHECK (tipo_alerta IN ('Estrés Hídrico', 'Saturación', 'Falla de Calibración')),
                         CONSTRAINT chk_severidad CHECK (severidad IN ('Crítica', 'Advertencia', 'Informativa'))
 );
 GO
@@ -317,6 +390,46 @@ INSERT INTO AreaRiego (id_area, id_predio, nombre, tipo_cultivo, tipo_tierra, ta
     ('AR-005', 2, 'Zona Chile E1',   'Chile',   'Franco Limoso',    2.50, 30.00, 10.00);
 GO
 
+-- Historial de consumo de agua (7 días x 5 áreas)
+DELETE FROM ConsumoAgua WHERE id_area IN ('AR-001','AR-002','AR-003','AR-004','AR-005');
+INSERT INTO ConsumoAgua (id_area, fecha_hora, consumo_m3) VALUES
+    ('AR-001', DATEADD(HOUR, -168, GETDATE()), 1.85), ('AR-001', DATEADD(HOUR, -156, GETDATE()), 2.90),
+    ('AR-001', DATEADD(HOUR, -144, GETDATE()), 2.05), ('AR-001', DATEADD(HOUR, -132, GETDATE()), 3.35),
+    ('AR-001', DATEADD(HOUR, -120, GETDATE()), 1.78), ('AR-001', DATEADD(HOUR, -108, GETDATE()), 2.62),
+    ('AR-001', DATEADD(HOUR,  -96, GETDATE()), 2.18), ('AR-001', DATEADD(HOUR,  -84, GETDATE()), 3.10),
+    ('AR-001', DATEADD(HOUR,  -72, GETDATE()), 1.92), ('AR-001', DATEADD(HOUR,  -60, GETDATE()), 2.74),
+    ('AR-001', DATEADD(HOUR,  -48, GETDATE()), 2.11), ('AR-001', DATEADD(HOUR,  -36, GETDATE()), 3.48),
+    ('AR-001', DATEADD(HOUR,  -24, GETDATE()), 2.06), ('AR-001', DATEADD(HOUR,  -12, GETDATE()), 2.88),
+    ('AR-002', DATEADD(HOUR, -168, GETDATE()), 1.35), ('AR-002', DATEADD(HOUR, -156, GETDATE()), 2.10),
+    ('AR-002', DATEADD(HOUR, -144, GETDATE()), 1.42), ('AR-002', DATEADD(HOUR, -132, GETDATE()), 2.32),
+    ('AR-002', DATEADD(HOUR, -120, GETDATE()), 1.56), ('AR-002', DATEADD(HOUR, -108, GETDATE()), 1.98),
+    ('AR-002', DATEADD(HOUR,  -96, GETDATE()), 1.47), ('AR-002', DATEADD(HOUR,  -84, GETDATE()), 2.26),
+    ('AR-002', DATEADD(HOUR,  -72, GETDATE()), 1.33), ('AR-002', DATEADD(HOUR,  -60, GETDATE()), 2.04),
+    ('AR-002', DATEADD(HOUR,  -48, GETDATE()), 1.58), ('AR-002', DATEADD(HOUR,  -36, GETDATE()), 2.41),
+    ('AR-002', DATEADD(HOUR,  -24, GETDATE()), 1.44), ('AR-002', DATEADD(HOUR,  -12, GETDATE()), 1.89),
+    ('AR-003', DATEADD(HOUR, -168, GETDATE()), 0.82), ('AR-003', DATEADD(HOUR, -156, GETDATE()), 1.58),
+    ('AR-003', DATEADD(HOUR, -144, GETDATE()), 0.94), ('AR-003', DATEADD(HOUR, -132, GETDATE()), 1.76),
+    ('AR-003', DATEADD(HOUR, -120, GETDATE()), 1.01), ('AR-003', DATEADD(HOUR, -108, GETDATE()), 1.44),
+    ('AR-003', DATEADD(HOUR,  -96, GETDATE()), 0.88), ('AR-003', DATEADD(HOUR,  -84, GETDATE()), 1.62),
+    ('AR-003', DATEADD(HOUR,  -72, GETDATE()), 0.79), ('AR-003', DATEADD(HOUR,  -60, GETDATE()), 1.39),
+    ('AR-003', DATEADD(HOUR,  -48, GETDATE()), 0.91), ('AR-003', DATEADD(HOUR,  -36, GETDATE()), 1.71),
+    ('AR-003', DATEADD(HOUR,  -24, GETDATE()), 0.86), ('AR-003', DATEADD(HOUR,  -12, GETDATE()), 1.53),
+    ('AR-004', DATEADD(HOUR, -168, GETDATE()), 2.35), ('AR-004', DATEADD(HOUR, -156, GETDATE()), 3.92),
+    ('AR-004', DATEADD(HOUR, -144, GETDATE()), 2.48), ('AR-004', DATEADD(HOUR, -132, GETDATE()), 4.25),
+    ('AR-004', DATEADD(HOUR, -120, GETDATE()), 2.66), ('AR-004', DATEADD(HOUR, -108, GETDATE()), 3.58),
+    ('AR-004', DATEADD(HOUR,  -96, GETDATE()), 2.74), ('AR-004', DATEADD(HOUR,  -84, GETDATE()), 4.12),
+    ('AR-004', DATEADD(HOUR,  -72, GETDATE()), 2.21), ('AR-004', DATEADD(HOUR,  -60, GETDATE()), 3.84),
+    ('AR-004', DATEADD(HOUR,  -48, GETDATE()), 2.57), ('AR-004', DATEADD(HOUR,  -36, GETDATE()), 4.38),
+    ('AR-004', DATEADD(HOUR,  -24, GETDATE()), 2.69), ('AR-004', DATEADD(HOUR,  -12, GETDATE()), 3.73),
+    ('AR-005', DATEADD(HOUR, -168, GETDATE()), 0.42), ('AR-005', DATEADD(HOUR, -156, GETDATE()), 1.18),
+    ('AR-005', DATEADD(HOUR, -144, GETDATE()), 0.55), ('AR-005', DATEADD(HOUR, -132, GETDATE()), 1.26),
+    ('AR-005', DATEADD(HOUR, -120, GETDATE()), 0.49), ('AR-005', DATEADD(HOUR, -108, GETDATE()), 1.04),
+    ('AR-005', DATEADD(HOUR,  -96, GETDATE()), 0.46), ('AR-005', DATEADD(HOUR,  -84, GETDATE()), 1.31),
+    ('AR-005', DATEADD(HOUR,  -72, GETDATE()), 0.39), ('AR-005', DATEADD(HOUR,  -60, GETDATE()), 1.12),
+    ('AR-005', DATEADD(HOUR,  -48, GETDATE()), 0.53), ('AR-005', DATEADD(HOUR,  -36, GETDATE()), 1.28),
+    ('AR-005', DATEADD(HOUR,  -24, GETDATE()), 0.44), ('AR-005', DATEADD(HOUR,  -12, GETDATE()), 1.07);
+GO
+
 -- Lecturas de telemetría
 IF NOT EXISTS (SELECT TOP 1 * FROM LecturaTelemetria)
 INSERT INTO LecturaTelemetria (id_area, fecha_hora, humedad_suelo, potencial_hidrico, electroconductividad, temperatura_suelo, ndvi, estatus_riego, flujo_riego, temperatura_ambiental, humedad_relativa, velocidad_viento, radiacion_solar, evapotranspiracion) VALUES
@@ -339,9 +452,9 @@ GO
 -- Alertas
 IF NOT EXISTS (SELECT TOP 1 * FROM Alerta)
 INSERT INTO Alerta (id_area, fecha_generacion, tipo_alerta, severidad, mensaje, leida) VALUES
-    ('AR-002', DATEADD(MINUTE, -10, GETDATE()), 'Estrés Hídrico',      'Crítica',     'Humedad del suelo por debajo del punto de marchitez (11.80%). Riego urgente requerido.', 0),
-    ('AR-004', DATEADD(MINUTE, -10, GETDATE()), 'Saturación',          'Advertencia', 'Humedad del suelo cerca de la capacidad de campo (42.50%). Revisar sistema de riego.',    0),
-    ('AR-005', DATEADD(HOUR,   -2,  GETDATE()), 'Falla de Calibración', 'Informativa', 'El sensor de AR-005 presenta lecturas inconsistentes. Verificar calibración.',            1);
+    ('AR-002', DATEADD(MINUTE, -10, GETDATE()), 'Humedad Promedio Fuera de Rango',  'Crítica',     'Promedio humedad últimas 6 lecturas por debajo del rango mínimo. Riego urgente requerido.', 0),
+    ('AR-004', DATEADD(MINUTE, -10, GETDATE()), 'Humedad Promedio Fuera de Rango',  'Advertencia', 'Promedio humedad últimas 6 lecturas cerca del límite superior. Revisar sistema de riego.',  0),
+    ('AR-005', DATEADD(HOUR,   -2,  GETDATE()), 'CE Promedio Fuera de Rango',       'Informativa', 'Promedio CE últimas 6 lecturas fuera de rango. Verificar calibración del sensor.',           1);
 GO
 
 -- Auditoría
