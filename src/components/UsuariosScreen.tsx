@@ -20,6 +20,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 
   const normalizarRFC = (value: string) =>
@@ -55,6 +56,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     const rfcNormalizado = normalizarRFC(formData.rfc);
 
     if (!formData.email || !formData.nombre_completo || !rfcNormalizado || !formData.fecha_nacimiento) {
@@ -83,6 +85,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
 
       if (result.ok) {
         setShowDialog(false);
+        setSuccess('Usuario guardado exitosamente.');
         setFormData({
           nombre_completo: '',
           email: '',
@@ -175,13 +178,19 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
             <p className="text-sm md:text-base text-gray-600">Administra los usuarios del sistema</p>
           </div>
           <Button
-            onClick={() => { setShowDialog(true); setError(''); }}
+            onClick={() => { setShowDialog(true); setError(''); setSuccess(''); }}
             className="bg-gradient-to-r from-blue-600 to-green-600 rounded-xl"
           >
             <UserPlus className="w-5 h-5 mr-2" />
             Crear Usuario
           </Button>
         </div>
+
+        {success && (
+          <div className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
+            {success}
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-4">
           <Card className="p-6 rounded-2xl shadow-sm">

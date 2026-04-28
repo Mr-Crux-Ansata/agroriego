@@ -19,6 +19,8 @@ interface PerfilScreenProps {
 
 export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
   const [formData, setFormData] = useState({
     nombre: sessionUser?.nombre_completo || 'Usuario',
     email: sessionUser?.email || '',
@@ -64,12 +66,15 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setProfileError('');
+    setProfileSuccess('');
+
     const res = await api.actualizarMiPerfil({
       nombre_completo: formData.nombre,
     });
 
     if (!res.ok) {
-      alert(res.error || 'No se pudo actualizar el perfil');
+      setProfileError(res.error || 'No se pudo actualizar el perfil');
       return;
     }
 
@@ -82,7 +87,7 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
       setFotoPerfilUrl(perfil.foto_perfil_url || '');
     }
 
-    alert('Perfil actualizado exitosamente');
+    setProfileSuccess('Perfil actualizado exitosamente');
     setIsEditing(false);
   };
 
@@ -207,6 +212,17 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {profileError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {profileError}
+                    </div>
+                  )}
+                  {profileSuccess && (
+                    <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                      {profileSuccess}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="nombre">Nombre Completo</Label>

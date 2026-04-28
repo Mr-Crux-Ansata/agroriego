@@ -252,17 +252,51 @@ Cuando terminen un cambio, abren un **Pull Request** en GitHub para que el equip
 
 ## 📡 Módulo IoT (simulación)
 
-Para simular el envío de datos de sensores, el endpoint de telemetría no requiere autenticación:
+El endpoint de telemetría es público (sin JWT), pensado para dispositivos IoT o simuladores externos:
 
-```bash
-curl -X POST http://localhost:3001/api/telemetria \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id_area": 1,
-    "humedad": 45.2,
-    "temperatura": 24.5,
-    "flujo_agua": 12.3
-  }'
+POST http://TU_SERVIDOR:3001/api/telemetria
+
+Payload esperado:
+
+```json
+{
+  "id_area": "AR-001",
+  "humedad_suelo": 25.5,
+  "potencial_hidrico": -0.035,
+  "electroconductividad": 1.2,
+  "temperatura_suelo": 22.5,
+  "ndvi": 0.72,
+  "estatus_riego": true,
+  "flujo_riego": 12.5,
+  "temperatura_ambiental": 27.0,
+  "humedad_relativa": 45.0,
+  "velocidad_viento": 8.5,
+  "radiacion_solar": 650.0,
+  "evapotranspiracion": 4.2
+}
 ```
 
-Los datos se insertan en la base de datos y el sistema genera alertas automáticas si los valores están fuera de los umbrales configurados.
+### Simulador incluido (Node.js)
+
+En `backend`:
+
+```bash
+npm run simulate:sensors
+```
+
+Opciones:
+
+```bash
+SIM_BASE_URL=http://192.168.1.100:3001/api \
+SIM_INTERVAL_MS=5000 \
+SIM_AREAS=AR-001,AR-003 \
+npm run simulate:sensors
+```
+
+También puedes usar argumentos:
+
+```bash
+npm run simulate:sensors -- --baseUrl http://192.168.1.100:3001/api --intervalMs 5000 --areas AR-001,AR-002
+```
+
+Con esto puedes ejecutar el simulador desde otra computadora o red, siempre que tenga alcance al puerto 3001 del backend.

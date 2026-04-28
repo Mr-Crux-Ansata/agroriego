@@ -1,287 +1,178 @@
-const BASE = 'http://localhost:3001/api';
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const TOKEN_KEY = 'token';
+// No persistir sesión en localStorage para evitar auto-login por cache entre reinicios.
+localStorage.removeItem(TOKEN_KEY);
 
-const DEMO_USERS = [
-    { email: 'admin@agroriego.mx', password: 'admin123', rol: 'Administrador Sistema', nombre: 'Admin Sistema' },
-    { email: 'predio@agroriego.mx', password: 'predio123', rol: 'Administrador Predio', nombre: 'Admin Predio' },
-    { email: 'operador@agroriego.mx', password: 'op123', rol: 'Operador', nombre: 'Operador Demo' },
-];
-
-console.log("🚨 ESTE ES EL API CORRECTO");
-
-// ---------------------
-// TOKEN
-// ---------------------
 function getToken() {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem(TOKEN_KEY);
 }
 
-function getStoredUser() {
-    const raw = localStorage.getItem('user');
-    if (!raw) return null;
-
-    try {
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
+function saveToken(token) {
+    if (!token) return;
+    sessionStorage.setItem(TOKEN_KEY, token);
+    // Limpiar legado para evitar sesiones persistentes por cache/localStorage.
+    localStorage.removeItem(TOKEN_KEY);
 }
 
-// ---------------------
-// HEADERS
-// ---------------------
-function getHeaders(auth = true) {
-    const headers = {
+function clearToken() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+}
+
+function headers() {
+    const token = getToken();
+    return {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     };
-
-    if (auth) {
-        const token = getToken();
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-    }
-
-    return headers;
 }
 
-// ---------------------
-// REQUEST CENTRAL
-// ---------------------
-async function request(url, options = {}, auth = true) {
-    try {
-        console.log("➡️ URL:", `${BASE}${url}`);
+async function fetchJson(url, options = {}) {
+    const response = await fetch(url, {
+        cache: 'no-store',
+        ...options,
+    });
 
-        const res = await fetch(`${BASE}${url}`, {
-            ...options,
-            headers: getHeaders(auth),
-        });
+    const data = await response.json().catch(() => ({}));
 
-        const data = await res.json().catch(() => ({}));
-
-        console.log("📦 STATUS:", res.status);
-        console.log("📦 DATA:", data);
-
-        if (!res.ok) {
-            return {
-                ok: false,
-                error: data.error || 'Error en servidor',
-            };
-        }
-
-        return {
-            ok: true,
-            data, // 👈 CONSISTENTE TODO EL SISTEMA
-        };
-
-    } catch (err) {
-        console.log("❌ FETCH ERROR REAL:", err);
-
-        return {
-            ok: false,
-            error: 'Error de conexión',
-        };
+    if (response.status === 401) {
+        clearToken();
     }
+
+    return { response, data };
 }
 
-async function requestFormData(url, formData, auth = true) {
-    try {
-        const headers = {};
-        if (auth) {
-            const token = getToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-        }
-
-        const res = await fetch(`${BASE}${url}`, {
+export const api = {
+    login: async (email, password) => {
+        const { response, data } = await fetchJson(`${BASE}/auth/login`, {
             method: 'POST',
-            headers,
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
         });
 
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            return {
-                ok: false,
-                error: data.error || 'Error en servidor',
-            };
+        if (!response.ok) {
+            return { ok: false, error: data?.error || 'No se pudo iniciar sesión' };
+        }
+
+        if (data?.token) {
+            saveToken(data.token);
         }
 
         return { ok: true, data };
-    } catch (err) {
-        console.log('❌ FETCH ERROR REAL:', err);
-        return {
-            ok: false,
-            error: 'Error de conexión',
-        };
-    }
-}
-
-// ---------------------
-// API
-// ---------------------
-export const api = {
-
-    // 🔑 LOGIN
-    login: async (email, password) => {
-        const res = await request('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email, password }),
-        }, false);
-
-        // Fallback local para desarrollo cuando backend/DB no estén disponibles.
-        if (!res.ok && res.error === 'Error de conexión') {
-            const demoUser = DEMO_USERS.find(
-                (u) => u.email === email && u.password === password
-            );
-
-            if (demoUser) {
-                const data = {
-                    token: 'demo-local-token',
-                    user: {
-                        email: demoUser.email,
-                        rol: demoUser.rol,
-                        nombre: demoUser.nombre,
-                    },
-                };
-
-                localStorage.setItem('token', data.token);
-                return { ok: true, data };
-            }
-        }
-
-        if (res.ok && res.data?.token) {
-            localStorage.setItem('token', res.data.token);
-            if (res.data.user) {
-                localStorage.setItem('user', JSON.stringify(res.data.user));
-            }
-        }
-
-        return res;
     },
 
     getCurrentUser: async () => {
-        const res = await request('/auth/me');
+        const token = getToken();
+        if (!token) return null;
 
-        if (res.ok && res.data?.user) {
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-            return res.data.user;
+        const { response, data } = await fetchJson(`${BASE}/usuarios/perfil`, {
+            headers: headers(),
+        });
+
+        if (!response.ok) {
+            return null;
         }
 
-        return getStoredUser();
+        return data?.perfil || null;
     },
-
-    getStoredUser,
 
     logout: () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearToken();
     },
 
-    getPredios: async () => {
-        const res = await request('/predios');
-        return res.data;
-    },
+    getPredios: () =>
+        fetchJson(`${BASE}/predios`, { headers: headers() }).then(({ data }) => data),
 
-    crearPredio: (data) =>
-        request('/predios', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
+    getAreas: () =>
+        fetchJson(`${BASE}/areas`, { headers: headers() }).then(({ data }) => data),
 
-    activarCuenta: (token, password) =>
-        request('/auth/activar', {
-            method: 'POST',
-            body: JSON.stringify({ token, password }),
-        }, false),
-
-    getAreas: async () => {
-        const res = await request('/areas');
-        return res.data;
+    getTelemetria: (areaId, desde, hasta) => {
+        const params = desde && hasta
+            ? `?desde=${desde}&hasta=${hasta}` : '';
+        return fetchJson(`${BASE}/areas/${areaId}/telemetria${params}`,
+            { headers: headers() }).then(({ data }) => data);
     },
 
     updateAreaConfig: (areaId, config) =>
-        request(`/areas/${areaId}/config`, {
+        fetchJson(`${BASE}/areas/${areaId}/config`, {
             method: 'PUT',
+            headers: headers(),
             body: JSON.stringify(config),
-        }),
+        }).then(({ data }) => data),
 
-    // 📡 TELEMETRIA
-    getTelemetria: async (areaId, desde, hasta) => {
-        const params = desde && hasta
-            ? `?desde=${desde}&hasta=${hasta}`
-            : '';
-
-        const res = await request(`/areas/${areaId}/telemetria${params}`);
-        return res.data;
-    },
-
-    getDashboardResumen: async () => {
-        const res = await request('/dashboard/resumen');
-        return res.data;
-    },
-
-    importarTelemetriaCSV: (csvContent, areaId) =>
-        request('/reportes/importar-csv', {
-            method: 'POST',
-            body: JSON.stringify({ csvContent, areaId }),
-        }),
-
-    // ⚙️ CONFIGURACION GENERAL
-    getConfiguracionGeneral: () => request('/configuracion'),
-
-    actualizarConfiguracionGeneral: (data) =>
-        request('/configuracion', {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        }),
-
-    // 🚨 ALERTAS
-    getAlertas: async () => {
-        const res = await request('/alertas');
-        return res.data;
-    },
+    getAlertas: () =>
+        fetchJson(`${BASE}/alertas`, { headers: headers() }).then(({ data }) => data),
 
     marcarAlertaLeida: (id) =>
-        request(`/alertas/${id}/leer`, {
+        fetchJson(`${BASE}/alertas/${id}/leer`, {
             method: 'PATCH',
-        }),
+            headers: headers(),
+        }).then(({ data }) => data),
 
-    // 👤 USUARIOS
-    getUsuarios: async () => {
-        const res = await request('/usuarios');
-        return res.data;
-    },
+    getUsuarios: () =>
+        fetchJson(`${BASE}/usuarios`, { headers: headers() }).then(({ data }) => data),
 
     crearUsuario: (data) =>
-        request('/usuarios', {
+        fetchJson(`${BASE}/usuarios`, {
             method: 'POST',
+            headers: headers(),
             body: JSON.stringify(data),
-        }),
+        }).then(({ data: body }) => body),
 
     eliminarUsuario: (id) =>
-        request(`/usuarios/${id}`, {
+        fetchJson(`${BASE}/usuarios/${id}`, {
             method: 'DELETE',
-        }),
+            headers: headers(),
+        }).then(({ data }) => data),
 
-    getMiPerfil: () => request('/usuarios/perfil'),
+    crearPredio: (data) =>
+        fetchJson(`${BASE}/predios`, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(data),
+        }).then(({ data }) => data),
 
-    cambiarPassword: (actual, nueva) =>
-        request('/usuarios/perfil/password', {
+    // Dashboard
+    getDashboardResumen: () =>
+        fetchJson(`${BASE}/dashboard/resumen`, { headers: headers() }).then(({ data }) => data),
+
+    // Configuración general
+    getConfiguracionGeneral: () =>
+        fetchJson(`${BASE}/configuracion`, { headers: headers() }).then(({ data }) => data),
+
+    actualizarConfiguracionGeneral: (data) =>
+        fetchJson(`${BASE}/configuracion`, {
             method: 'PUT',
-            body: JSON.stringify({ actual, nueva }),
-        }),
+            headers: headers(),
+            body: JSON.stringify(data),
+        }).then(({ data }) => data),
+
+    // Perfil del usuario autenticado
+    getMiPerfil: () =>
+        fetchJson(`${BASE}/usuarios/perfil`, { headers: headers() }).then(({ data }) => data),
 
     actualizarMiPerfil: (data) =>
-        request('/usuarios/perfil', {
+        fetchJson(`${BASE}/usuarios/perfil`, {
             method: 'PUT',
+            headers: headers(),
             body: JSON.stringify(data),
-        }),
+        }).then(({ data: body }) => body),
 
     subirFotoPerfil: (file) => {
-        const formData = new FormData();
-        formData.append('imagen', file);
-        return requestFormData('/usuarios/perfil/foto', formData);
+        const form = new FormData();
+        form.append('foto', file);
+        const token = getToken();
+        return fetchJson(`${BASE}/usuarios/perfil/foto`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            body: form,
+        }).then(({ data }) => data);
     },
 
+    cambiarPassword: (actual, nueva) =>
+        fetchJson(`${BASE}/usuarios/perfil/password`, {
+            method: 'PUT',
+            headers: headers(),
+            body: JSON.stringify({ actual, nueva }),
+        }).then(({ data }) => data),
 };

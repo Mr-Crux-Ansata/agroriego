@@ -40,6 +40,7 @@ app.use('/api/alertas', require('./routes/alertas'));
 app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/telemetria', require('./routes/telemetria'));
 
 // ERROR DE PARSEO JSON / BODY
 app.use((err, req, res, next) => {

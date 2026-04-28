@@ -1,5 +1,5 @@
 const sql = require('mssql'); // <--- Solo UNA vez aquí arriba
-require('dotenv').config({ override: true });
+require('dotenv').config();
 
 function getRequiredEnv(name) {
     const value = process.env[name];
