@@ -132,6 +132,25 @@ export const api = {
             body: JSON.stringify(data),
         }).then(({ data }) => data),
 
+    actualizarPredio: (id, data) =>
+        fetchJson(`${BASE}/predios/${id}`, {
+            method: 'PUT',
+            headers: headers(),
+            body: JSON.stringify(data),
+        }).then(({ data }) => data),
+
+    eliminarPredio: (id) =>
+        fetchJson(`${BASE}/predios/${id}`, {
+            method: 'DELETE',
+            headers: headers(),
+        }).then(({ data }) => data),
+
+    eliminarArea: (id) =>
+        fetchJson(`${BASE}/areas/${id}`, {
+            method: 'DELETE',
+            headers: headers(),
+        }).then(({ data }) => data),
+
     // Dashboard
     getDashboardResumen: () =>
         fetchJson(`${BASE}/dashboard/resumen`, { headers: headers() }).then(({ data }) => data),

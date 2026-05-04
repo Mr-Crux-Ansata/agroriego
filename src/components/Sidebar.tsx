@@ -17,7 +17,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "./ui/sheet";
 interface SidebarProps {
   currentView: string;
   onNavigate: (view: string) => void;
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
   onLogout: () => void;
   isOpen?: boolean;
   onClose?: () => void;
@@ -64,7 +64,7 @@ export function Sidebar({ currentView, onNavigate, userRole, onLogout, isOpen, o
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-1">
           {menuItems.map((item) => {
-            if (item.adminOnly && userRole !== 'admin') return null;
+            if (item.adminOnly && userRole !== 'system-admin' && userRole !== 'admin') return null;
             
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -91,7 +91,7 @@ export function Sidebar({ currentView, onNavigate, userRole, onLogout, isOpen, o
         <div className="bg-blue-700 rounded-xl p-3 mb-3">
           <p className="text-xs text-blue-200">Rol actual</p>
           <p className="text-sm font-semibold">
-            {userRole === 'admin' ? 'Administrador' : 'Usuario'}
+            {userRole === 'system-admin' ? 'Administrador Sistema' : userRole === 'admin' ? 'Administrador Predio' : 'Usuario'}
           </p>
         </div>
         <Button

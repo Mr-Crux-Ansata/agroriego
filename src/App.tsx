@@ -25,10 +25,12 @@ interface SessionUser {
   rol: string;
 }
 
+type UserRole = 'system-admin' | 'admin' | 'user';
+
 export default function App() {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
+  const [userRole, setUserRole] = useState<UserRole>('user');
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedData, setSelectedData] = useState<any>(null);
@@ -53,11 +55,13 @@ export default function App() {
 
   const handleLogin = (user: any) => {
     setSessionUser(user);
-    setUserRole(
-        user.rol === 'Administrador Sistema' || user.rol === 'Administrador Predio'
-            ? 'admin'
-            : 'user'
-    );
+    if (user.rol === 'Administrador Sistema') {
+      setUserRole('system-admin');
+    } else if (user.rol === 'Administrador Predio') {
+      setUserRole('admin');
+    } else {
+      setUserRole('user');
+    }
     setIsLoggedIn(true);
     setCurrentView('dashboard');
   };

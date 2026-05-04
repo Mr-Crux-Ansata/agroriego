@@ -8,7 +8,7 @@ import { UserCircle, Save, Shield, Eye, Mail } from 'lucide-react';
 import { api } from '../api';
 
 interface PerfilScreenProps {
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
   sessionUser: {
     id_usuario: number;
     email: string;
@@ -176,12 +176,16 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                       <h2 className="text-lg sm:text-2xl font-medium truncate">{formData.nombre}</h2>
                       <div className="flex items-center mt-1">
                         <Badge className={
-                          userRole === 'admin'
+                            userRole === 'system-admin'
                               ? 'bg-purple-100 text-purple-700 whitespace-nowrap'
-                              : 'bg-blue-100 text-blue-700 whitespace-nowrap'
+                              : userRole === 'admin'
+                              ? 'bg-blue-100 text-blue-700 whitespace-nowrap'
+                              : 'bg-green-100 text-green-700 whitespace-nowrap'
                         }>
-                          {userRole === 'admin' ? (
-                              <><Shield className="w-3 h-3 mr-1" /> Administrador</>
+                            {userRole === 'system-admin' ? (
+                              <><Shield className="w-3 h-3 mr-1" /> Administrador Sistema</>
+                            ) : userRole === 'admin' ? (
+                              <><Shield className="w-3 h-3 mr-1" /> Administrador Predio</>
                           ) : (
                               <><Eye className="w-3 h-3 mr-1" /> Usuario</>
                           )}
@@ -341,7 +345,7 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
               <Card className="p-4 sm:p-6 rounded-2xl shadow-sm">
                 <h2 className="text-lg mb-4 font-medium">Permisos del Rol</h2>
                 <div className="space-y-3">
-                  {userRole === 'admin' ? (
+                  {userRole === 'system-admin' || userRole === 'admin' ? (
                       <>
                         <div className="flex items-center gap-2 text-sm">
                           <div className="w-2 h-2 shrink-0 bg-green-500 rounded-full" />
@@ -349,7 +353,7 @@ export function PerfilScreen({ userRole, sessionUser }: PerfilScreenProps) {
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <div className="w-2 h-2 shrink-0 bg-green-500 rounded-full" />
-                          <span>Gestionar usuarios</span>
+                          <span>{userRole === 'system-admin' ? 'Gestionar usuarios y eliminarlos' : 'Gestionar su operación de predios'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <div className="w-2 h-2 shrink-0 bg-green-500 rounded-full" />

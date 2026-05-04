@@ -334,7 +334,7 @@ router.post('/', verificarToken, async (req, res) => {
     const { email, nombre_completo, rol, rfc, fecha_nacimiento } = req.body;
 
 
-    if (req.user.rol !== 'Administrador Sistema') {
+    if (req.user.rol !== 'Administrador Sistema' && req.user.rol !== 'Administrador Predio') {
         return res.status(403).json({ error: 'No autorizado' });
     }
 
@@ -373,11 +373,9 @@ router.post('/', verificarToken, async (req, res) => {
             return res.status(400).json({ error: 'El RFC ya está registrado' });
         }
 
-        const rolesPermitidos = [
-            'Administrador Sistema',
-            'Administrador Predio',
-            'Operador Campo'
-        ];
+        const rolesPermitidos = req.user.rol === 'Administrador Sistema'
+            ? ['Administrador Sistema', 'Administrador Predio', 'Operador Campo']
+            : ['Administrador Predio', 'Operador Campo'];
 
         if (!rolesPermitidos.includes(rol)) {
             return res.status(400).json({ error: 'Rol inválido' });

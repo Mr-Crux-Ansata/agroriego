@@ -117,6 +117,27 @@ router.put('/:id/config', verificarToken, async (req, res) => {
     }
 });
 
+router.delete('/:id', verificarToken, async (req, res) => {
+    if (req.user.rol !== 'Administrador Sistema') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('id', sql.VarChar, req.params.id)
+            .query('DELETE FROM AreaRiego WHERE id_area = @id');
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Área no encontrada' });
+        }
+
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 async function upsertAlertaPendiente(pool, idArea, idLectura, tipo, severidad, mensaje) {
     const existePendiente = await pool.request()
         .input('id_area', sql.VarChar, idArea)

@@ -1,11 +1,11 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Droplet, Calendar, Sprout, Settings, ArrowLeft } from 'lucide-react';
+import { Droplet, Calendar, Sprout, Settings, ArrowLeft, Trash2 } from 'lucide-react';
 import { api } from '../api';
 
 interface AreasScreenProps {
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
   onNavigate: (view: string, data?: any) => void;
   selectedPredioId?: number | null;
 }
@@ -52,6 +52,30 @@ export function AreasScreen({ userRole, onNavigate, selectedPredioId }: AreasScr
 
     cargarDatos();
   }, []);
+
+  const recargarAreas = async () => {
+    try {
+      setLoading(true);
+      const [areasData, prediosData] = await Promise.all([api.getAreas(), api.getPredios()]);
+      setAreas(Array.isArray(areasData) ? areasData : []);
+      setPredios(Array.isArray(prediosData) ? prediosData : []);
+    } catch {
+      setAreas([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteArea = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar el área ${nombre}?`)) return;
+    try {
+      await api.eliminarArea(id);
+      await recargarAreas();
+    } catch (error) {
+      console.error('Error eliminando área:', error);
+      alert('No se pudo eliminar el área');
+    }
+  };
 
   const sameId = (a: any, b: any) => Number(a) === Number(b);
 
@@ -197,7 +221,7 @@ export function AreasScreen({ userRole, onNavigate, selectedPredioId }: AreasScr
                           >
                             Ver Detalles
                           </Button>
-                          {userRole === 'admin' && (
+                          {(userRole === 'admin' || userRole === 'system-admin') && (
                               <Button
                                   onClick={() => onNavigate('area-config', area)}
                                   variant="outline"
@@ -205,6 +229,16 @@ export function AreasScreen({ userRole, onNavigate, selectedPredioId }: AreasScr
                                   className="rounded-xl"
                               >
                                 <Settings className="w-4 h-4" />
+                              </Button>
+                          )}
+                          {userRole === 'system-admin' && (
+                              <Button
+                                  onClick={() => handleDeleteArea(area.id_area, area.nombre)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                           )}
                         </div>

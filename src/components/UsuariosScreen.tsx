@@ -12,7 +12,7 @@ import { api } from '../api';
 
 
 interface UsuariosScreenProps {
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
 }
 
 export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
@@ -33,6 +33,9 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
     fecha_nacimiento: '',
     rol: 'Operador Campo',
   });
+
+  const canManageUsers = userRole === 'system-admin' || userRole === 'admin';
+  const canCreateSystemAdmin = userRole === 'system-admin';
 
   useEffect(() => {
     cargarUsuarios();
@@ -141,7 +144,7 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
     }
   };
 
-  if (userRole !== 'admin') {
+  if (!canManageUsers) {
     return (
       <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
@@ -231,14 +234,16 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                 </div>
               </div>
 
-              <Button 
-                onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}
-                variant="outline"
-                size="sm"
-                className="!bg-black !text-white rounded-xl hover:!bg-gray-800 dark:!bg-black dark:!text-white dark:hover:!bg-gray-800"
-              >
-                <Trash2 />
-              </Button>
+              {userRole === 'system-admin' && (
+                <Button 
+                  onClick={() => handleDelete(usuario.id_usuario, usuario.nombre_completo)}
+                  variant="outline"
+                  size="sm"
+                  className="!bg-black !text-white rounded-xl hover:!bg-gray-800 dark:!bg-black dark:!text-white dark:hover:!bg-gray-800"
+                >
+                  <Trash2 />
+                </Button>
+              )}
             </Card>
           );
         })}
@@ -295,7 +300,9 @@ export function UsuariosScreen({ userRole }: UsuariosScreenProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Administrador Sistema">Admin Sistema</SelectItem>
+                    {canCreateSystemAdmin && (
+                      <SelectItem value="Administrador Sistema">Admin Sistema</SelectItem>
+                    )}
                   <SelectItem value="Administrador Predio">Admin Predio</SelectItem>
                   <SelectItem value="Operador Campo">Operador</SelectItem>
                 </SelectContent>

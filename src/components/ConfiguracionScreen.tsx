@@ -9,7 +9,7 @@ import { Save, Bell, Clock, Building } from 'lucide-react';
 import { api } from '../api';
 
 interface ConfiguracionScreenProps {
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
 }
 
 export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
@@ -89,7 +89,7 @@ export function ConfiguracionScreen({ userRole }: ConfiguracionScreenProps) {
     setSuccess('Configuración guardada exitosamente.');
   };
 
-  if (userRole !== 'admin') {
+  if (userRole !== 'admin' && userRole !== 'system-admin') {
     return (
       <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">

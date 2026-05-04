@@ -10,7 +10,7 @@ import { api } from '../api';
 
 interface AreaConfigScreenProps {
   area: any;
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
   onNavigate: (view: string, data?: any) => void;
 }
 
@@ -28,7 +28,7 @@ export function AreaConfigScreen({ area, userRole, onNavigate }: AreaConfigScree
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (userRole !== 'admin') {
+  if (userRole !== 'admin' && userRole !== 'system-admin') {
     return (
         <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
           <div className="max-w-4xl mx-auto">

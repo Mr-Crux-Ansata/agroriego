@@ -4,13 +4,13 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { MapPin, Plus, Edit, Check } from 'lucide-react';
+import { MapPin, Plus, Edit, Check, Trash2 } from 'lucide-react';
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { api } from '../api';
 
 interface PrediosScreenProps {
-  userRole: 'admin' | 'user';
+  userRole: 'system-admin' | 'admin' | 'user';
   onNavigate: (view: string, data?: any) => void;
 }
 
@@ -173,20 +173,40 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
     e.preventDefault();
     setError('');
     try {
-      const result = await api.crearPredio({
+      const payload = {
         nombre: formData.nombre,
         latitud: parseFloat(formData.latitud),
         longitud: parseFloat(formData.longitud),
         id_usuario: 2,
-      });
+      };
+      const result = editingPredio
+        ? await api.actualizarPredio(editingPredio.id_predio, payload)
+        : await api.crearPredio(payload);
+
       if (result.ok) {
         setShowDialog(false);
+        setEditingPredio(null);
         cargarDatos();
       } else {
         setError(result.error || 'Error al guardar');
       }
     } catch {
       setError('No se pudo conectar con el servidor');
+    }
+  };
+
+  const handleDeletePredio = async (id: number, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar el predio ${nombre}?`)) return;
+    try {
+      await api.eliminarPredio(id);
+      if (selectedPredioId === id) {
+        setSelectedPredioId(null);
+        setSelectedAreaIds([]);
+        setSelectedPredioPanelStep('areas');
+      }
+      cargarDatos();
+    } catch {
+      setError('No se pudo eliminar el predio');
     }
   };
 
@@ -442,14 +462,14 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
               <h1 className="text-2xl md:text-3xl mb-2">Gestión de Predios</h1>
               <p className="text-sm text-gray-600">Administra los predios registrados</p>
             </div>
-            {userRole === 'admin' && (
+            {userRole === 'admin' || userRole === 'system-admin' ? (
                 <Button
                     onClick={handleCreate}
                     className="bg-gradient-to-r from-blue-600 to-green-600 rounded-xl"
                 >
                   <Plus className="w-5 h-5 mr-2" /> Crear Predio
                 </Button>
-            )}
+            ) : null}
           </div>
 
           <Card className="p-4 md:p-6 rounded-2xl shadow-sm border border-gray-200 bg-white">
@@ -820,10 +840,22 @@ export function PrediosScreen({ userRole, onNavigate }: PrediosScreenProps) {
                               </p>
                             </div>
                           </div>
-                          {userRole === 'admin' && (
-                              <Button onClick={() => handleEdit(predio)} variant="ghost" size="sm" className="rounded-xl">
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                          {(userRole === 'admin' || userRole === 'system-admin') && (
+                              <div className="flex items-center gap-1">
+                                <Button onClick={() => handleEdit(predio)} variant="ghost" size="sm" className="rounded-xl">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                {userRole === 'system-admin' && (
+                                  <Button
+                                    onClick={() => handleDeletePredio(predio.id_predio, predio.nombre)}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="rounded-xl text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
                           )}
                         </div>
 

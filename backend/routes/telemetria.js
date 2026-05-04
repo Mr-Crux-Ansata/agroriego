@@ -87,6 +87,15 @@ router.post('/', async (req, res) => {
 });
 
 async function insertarAlerta(pool, id_area, id_lectura, tipo, severidad, mensaje) {
+    // No crear una nueva alerta si ya existe una del mismo tipo y área sin leer
+    const existe = await pool.request()
+        .input('id_area', sql.VarChar, id_area)
+        .input('tipo', sql.VarChar, tipo)
+        .query(`SELECT TOP 1 id_alerta FROM Alerta
+                WHERE id_area = @id_area AND tipo_alerta = @tipo AND leida = 0`);
+
+    if (existe.recordset.length > 0) return;
+
     const fecha = new Date();
     await pool.request()
         .input('id_area', sql.VarChar, id_area)
